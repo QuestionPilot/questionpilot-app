@@ -904,34 +904,53 @@ function checkBuyerPortal() {
 }
 
 async function loadBuyerPortal(token) {
-  const appEl = document.getElementById('screen-app');
-  appEl.style.display = 'flex';
-  appEl.classList.add('active');
-  const { data: buyer } = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
-  if (!buyer) {
-    appEl.innerHTML = '<div style="padding:4rem;text-align:center;color:#888">Invalid or expired portal link.</div>';
+  document.getElementById('screen-auth').style.display = 'none';
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading your portal...</div>';
+
+  const { data: buyer, error } = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
+  if (error || !buyer) {
+    document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>';
     return;
   }
-  currentDeal = buyer.deals;
-  allBuyers = [buyer];
+
   const { data: questions } = await db.from('questions').select('*').eq('deal_id', buyer.deal_id).eq('buyer_id', buyer.id).eq('status','published').order('created_at', { ascending: true });
-  allQuestions = questions || [];
-  document.querySelector('.sidebar').style.display = 'none';
-  document.querySelector('.topbar').innerHTML = '<div style="font-size:1rem;font-weight:800;letter-spacing:-0.02em">Question<span style="color:var(--teal)">Pilot</span> &nbsp;<span style="font-size:.75rem;font-weight:500;color:var(--ink-soft)">' + buyer.deals.name + ' \u2014 ' + buyer.name + '</span></div>';
-  document.getElementById('btn-new-deal').style.display = 'none';
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-deal-detail').classList.add('active');
-  document.getElementById('deal-detail-name').textContent = buyer.deals.name;
-  document.getElementById('deal-detail-meta').textContent = 'Your diligence questions \u00b7 ' + (questions ? questions.length : 0) + ' published';
-  document.querySelector('.view-toggle').style.display = 'none';
-  document.getElementById('deal-tab-buyers').style.display = 'none';
-  document.getElementById('deal-tab-add-q').style.display = 'none';
-  document.querySelector('.back-btn').style.display = 'none';
-  portalView = 'buyer';
-  setDealTab('tracker');
-  renderTrackerStats();
-  renderQuestions();
-  document.getElementById('detail-advisor-sections').style.display = 'none';
+  const qs = questions || [];
+
+  let rows = '';
+  if (!qs.length) {
+    rows = '<tr><td colspan="5" style="text-align:center;padding:3rem;color:#8fa5a3;font-size:.85rem">No published responses yet. Check back soon.</td></tr>';
+  } else {
+    qs.forEach(function(q) {
+      rows += '<tr style="border-bottom:1px solid rgba(0,0,0,.07)">';
+      rows += '<td style="padding:.85rem 1rem"><span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">' + (q.category||'') + '</span></td>';
+      rows += '<td style="padding:.85rem 1rem;font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">' + (q.question_number||'') + '</td>';
+      rows += '<td style="padding:.85rem 1rem;font-size:.82rem;color:#374140;max-width:280px">' + q.question_text + '</td>';
+      rows += '<td style="padding:.85rem 1rem;font-size:.7rem;color:#8fa5a3;font-family:monospace">' + (q.vdr_reference||'') + '</td>';
+      rows += '<td style="padding:.85rem 1rem;font-size:.82rem;color:#141f1e;max-width:320px">' + (q.published_response||'<span style="color:#8fa5a3;font-style:italic">Pending</span>') + '</td>';
+      rows += '</tr>';
+    });
+  }
+
+  document.body.innerHTML =
+    '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif">' +
+    '<div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between">' +
+    '<div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div>' +
+    '<div style="font-size:.78rem;color:rgba(255,255,255,.55)">' + buyer.deals.name + ' — ' + buyer.name + '</div>' +
+    '</div>' +
+    '<div style="max-width:1000px;margin:0 auto;padding:2rem 1.5rem">' +
+    '<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">' + buyer.deals.name + '</h1>' +
+    '<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">Due Diligence Questions · ' + buyer.name + ' · ' + qs.length + ' published response' + (qs.length !== 1 ? 's' : '') + '</p>' +
+    '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;overflow:hidden">' +
+    '<table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr style="background:#f2f4f3">' +
+    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Category</th>' +
+    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Q #</th>' +
+    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Question</th>' +
+    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">VDR Ref.</th>' +
+    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Response</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div></div></div>';
 }
 
 function showConfirmBack() {
