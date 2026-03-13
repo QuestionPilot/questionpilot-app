@@ -493,8 +493,9 @@ function showApp() {
 function toggleAuth() {
   const l = document.getElementById('auth-login-view');
   const s = document.getElementById('auth-signup-view');
-  l.style.display = l.style.display === 'none' ? 'block' : 'none';
-  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+  const showingLogin = s.style.display === 'none' || s.style.display === '';
+  l.style.display = showingLogin ? 'none' : 'block';
+  s.style.display = showingLogin ? 'block' : 'none';
 }
 
 document.getElementById('btn-login').addEventListener('click', async () => {
