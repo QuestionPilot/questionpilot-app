@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Question Pilot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f2f4f3;--white:#ffffff;--ink:#141f1e;--ink-mid:#374140;
+      --ink-soft:#5e7270;--ink-faint:#8fa5a3;--teal:#2a5c59;--teal-l:#3a7673;
+      --gold:#a87c2a;--rule:rgba(0,0,0,0.07);--rule-mid:rgba(0,0,0,0.12);
+    }
+    html,body{height:100%;font-family:"Plus Jakarta Sans",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6;overflow-x:hidden}
+    .screen{display:none;min-height:100vh}
+    .screen.active{display:flex}
+
+    /* AUTH */
+    #screen-auth{align-items:center;justify-content:center;background:var(--white);padding:2rem 1rem}
+    .auth-wrap{width:100%;max-width:400px}
+    .auth-logo{font-size:1.3rem;font-weight:800;color:var(--ink);text-align:center;margin-bottom:2.5rem;letter-spacing:-0.03em}
+    .auth-logo span{color:var(--teal)}
+    .auth-card{border:1px solid var(--rule-mid);border-radius:12px;padding:2.25rem;box-shadow:0 8px 32px rgba(0,0,0,0.1)}
+    .auth-card h2{font-size:1.3rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.25rem}
+    .sub{font-size:0.82rem;color:var(--ink-soft);margin-bottom:1.75rem}
+    .form-group{margin-bottom:1rem}
+    .form-label{font-size:0.75rem;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:0.35rem}
+    .form-input{width:100%;padding:0.65rem 0.9rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:0.875rem;color:var(--ink);background:var(--white);outline:none;transition:border-color .15s,box-shadow .15s}
+    .form-input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,92,89,.1)}
+    .form-input::placeholder{color:var(--ink-faint)}
+    .btn-primary{width:100%;padding:0.75rem;background:var(--teal);color:#fff;border:none;border-radius:7px;font-family:inherit;font-weight:700;font-size:0.9rem;cursor:pointer;transition:background .15s;margin-top:0.25rem}
+    .btn-primary:hover{background:var(--teal-l)}
+    .btn-primary:disabled{opacity:0.6;cursor:not-allowed}
+    .auth-switch{text-align:center;font-size:0.82rem;color:var(--ink-soft);margin-top:1.25rem}
+    .auth-switch a{color:var(--teal);font-weight:600;cursor:pointer}
+    .auth-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:0.8rem;padding:0.6rem 0.85rem;border-radius:6px;margin-bottom:1rem;display:none}
+    .auth-error.show{display:block}
+
+    /* APP SHELL */
+    #screen-app{flex-direction:row}
+    .sidebar{width:220px;min-height:100vh;background:#1a2827;display:flex;flex-direction:column;flex-shrink:0}
+    .sidebar-logo{padding:1.5rem 1.25rem 1.25rem;font-size:1.05rem;font-weight:800;color:#fff;letter-spacing:-0.02em;border-bottom:1px solid rgba(255,255,255,.07)}
+    .sidebar-logo span{color:#6ecfcb}
+    .sidebar-nav{flex:1;padding:1rem 0.75rem}
+    .nav-label{font-size:0.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:.75rem .5rem .4rem}
+    .nav-item{display:flex;align-items:center;gap:.65rem;padding:.55rem .75rem;border-radius:7px;font-size:0.82rem;font-weight:500;color:rgba(255,255,255,.55);cursor:pointer;transition:all .15s;margin-bottom:.1rem}
+    .nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+    .nav-item.active{background:rgba(110,207,203,.15);color:#6ecfcb}
+    .sidebar-footer{padding:1rem .75rem;border-top:1px solid rgba(255,255,255,.07)}
+    .user-chip{display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;border-radius:7px;cursor:pointer;transition:background .15s}
+    .user-chip:hover{background:rgba(255,255,255,.07)}
+    .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;flex-shrink:0}
+    .user-name{font-size:0.78rem;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .user-email{font-size:0.65rem;color:rgba(255,255,255,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* MAIN */
+    .main{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
+    .topbar{height:56px;background:var(--white);border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;padding:0 1.75rem;flex-shrink:0}
+    .topbar-title{font-size:0.95rem;font-weight:700;color:var(--ink);letter-spacing:-0.01em}
+    .topbar-actions{display:flex;gap:.5rem;align-items:center}
+    .btn-sm{padding:.45rem 1rem;border-radius:6px;font-family:inherit;font-weight:600;font-size:0.78rem;cursor:pointer;transition:all .15s;border:none}
+    .btn-teal{background:var(--teal);color:#fff}
+    .btn-teal:hover{background:var(--teal-l)}
+    .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--rule-mid)!important;border:none}
+    .btn-ghost:hover{background:var(--bg);color:var(--ink)}
+    .content{flex:1;padding:1.75rem;overflow-y:auto}
+    .view{display:none}
+    .view.active{display:block}
+
+    /* DASHBOARD */
+    .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.75rem}
+    .stat-card{background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.25rem 1.5rem}
+    .stat-label{font-size:0.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.5rem}
+    .stat-value{font-size:2rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1}
+    .stat-sub{font-size:0.72rem;color:var(--ink-soft);margin-top:.25rem}
+    .section-title{font-size:0.82rem;font-weight:700;color:var(--ink);margin-bottom:1rem}
+    .deals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+    .deal-card{background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;cursor:pointer;transition:box-shadow .15s,transform .15s}
+    .deal-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.1);transform:translateY(-2px)}
+    .deal-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem}
+    .deal-name{font-size:0.95rem;font-weight:700;color:var(--ink);letter-spacing:-0.01em}
+    .deal-date{font-size:0.68rem;color:var(--ink-faint);margin-top:.15rem}
+    .deal-badge{font-size:0.62rem;font-weight:700;padding:.2rem .55rem;border-radius:100px;letter-spacing:.05em;text-transform:uppercase;background:#d1fae5;color:#065f46}
+    .deal-stats{display:flex;gap:1rem}
+    .deal-stat{font-size:0.72rem;color:var(--ink-soft)}
+    .deal-stat strong{color:var(--ink);font-weight:700}
+    .empty-state{text-align:center;padding:4rem 2rem;color:var(--ink-soft)}
+    .empty-icon{font-size:2.5rem;margin-bottom:1rem}
+    .empty-state h3{font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:.4rem}
+    .empty-state p{font-size:0.85rem;margin-bottom:1.5rem}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
+    .modal-overlay.open{display:flex}
+    .modal{background:var(--white);border-radius:12px;padding:2rem;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+    .modal h3{font-size:1.1rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:.25rem}
+    .modal .sub{font-size:0.82rem;color:var(--ink-soft);margin-bottom:1.5rem}
+    .modal-footer{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem}
+    .btn-cancel{padding:.6rem 1.25rem;background:transparent;border:1px solid var(--rule-mid);color:var(--ink-soft);border-radius:7px;font-family:inherit;font-weight:500;font-size:0.85rem;cursor:pointer}
+    .btn-cancel:hover{background:var(--bg)}
+    .btn-confirm{padding:.6rem 1.25rem;background:var(--teal);color:#fff;border:none;border-radius:7px;font-family:inherit;font-weight:700;font-size:0.85rem;cursor:pointer}
+    .btn-confirm:hover{background:var(--teal-l)}
+    .btn-confirm:disabled{opacity:.6;cursor:not-allowed}
+
+    /* TRACKER */
+    .tracker-header{background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+    .tracker-header h2{font-size:1.1rem;font-weight:800;letter-spacing:-0.02em;color:var(--ink)}
+    .tracker-header p{font-size:0.78rem;color:var(--ink-soft);margin-top:.15rem}
+    .view-toggle{display:flex;background:var(--bg);border-radius:7px;padding:3px;gap:2px}
+    .toggle-btn{padding:.4rem .85rem;border-radius:5px;font-family:inherit;font-weight:600;font-size:0.75rem;cursor:pointer;border:none;background:transparent;color:var(--ink-soft);transition:all .15s}
+    .toggle-btn.active{background:var(--white);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+    .tstat-row{display:flex;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
+    .tstat{display:flex;align-items:center;gap:.4rem;font-size:0.75rem;color:var(--ink-soft)}
+    .tstat-dot{width:8px;height:8px;border-radius:50%}
+    .tstat strong{color:var(--ink);font-weight:700}
+    .tracker-toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap}
+    .search-wrap{flex:1;min-width:180px;position:relative}
+    .search-wrap input{width:100%;padding:.55rem .85rem .55rem 2.2rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:0.82rem;color:var(--ink);background:var(--white);outline:none}
+    .search-wrap input:focus{border-color:var(--teal)}
+    .search-icon{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);font-size:.75rem;pointer-events:none}
+    .filter-sel{padding:.55rem .85rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:0.82rem;color:var(--ink);background:var(--white);outline:none;cursor:pointer}
+    .table-wrap{background:var(--white);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+    .tbl{width:100%;border-collapse:collapse}
+    .tbl th{text-align:left;font-size:0.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);padding:.75rem 1rem;border-bottom:1px solid var(--rule);background:var(--bg);white-space:nowrap}
+    .tbl td{padding:.85rem 1rem;border-bottom:1px solid var(--rule);font-size:0.82rem;color:var(--ink-mid);vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tbody tr:hover td{background:rgba(42,92,89,.02);cursor:pointer}
+    .tbl-empty{text-align:center;padding:3rem;color:var(--ink-faint);font-size:0.85rem}
+    .cp{display:inline-block;padding:.15rem .5rem;font-size:0.65rem;font-weight:700;border-radius:4px}
+    .cp-0{background:#e0e7ff;color:#3730a3}
+    .cp-1{background:#fce7f3;color:#9d174d}
+    .cp-2{background:#d1fae5;color:#065f46}
+    .cp-3{background:#fef3c7;color:#92400e}
+    .cp-4{background:#ede9fe;color:#5b21b6}
+    .cat-badge{display:inline-block;padding:.12rem .45rem;font-size:0.65rem;background:#e8ebe9;color:var(--ink-soft);border-radius:4px}
+    .qnum{font-size:0.72rem;color:var(--teal);font-weight:700;font-family:monospace}
+    .sp{display:inline-block;padding:.18rem .55rem;font-size:0.62rem;font-weight:700;border-radius:100px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+    .sp-open{background:#dbeafe;color:#1e40af}
+    .sp-review{background:#fef3c7;color:#92400e}
+    .sp-draft{background:#f3f4f6;color:#6b7280}
+    .sp-pub{background:#d1fae5;color:#065f46}
+
+    /* DETAIL PANEL */
+    .detail-overlay{position:fixed;inset:0;z-index:500;display:none}
+    .detail-overlay.open{display:block}
+    .detail-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.3)}
+    .detail-panel{position:absolute;right:0;top:0;bottom:0;width:520px;background:var(--white);box-shadow:-4px 0 32px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden}
+    .detail-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--rule);display:flex;align-items:flex-start;justify-content:space-between}
+    .detail-meta{display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
+    .detail-q{font-size:0.95rem;font-weight:700;color:var(--ink);line-height:1.4;letter-spacing:-0.01em}
+    .detail-close{width:28px;height:28px;border-radius:6px;border:none;background:var(--bg);cursor:pointer;font-size:1rem;color:var(--ink-soft);flex-shrink:0;margin-left:1rem;transition:background .15s;display:flex;align-items:center;justify-content:center}
+    .detail-close:hover{background:var(--rule-mid)}
+    .detail-body{flex:1;overflow-y:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem}
+    .detail-sec h4{font-size:0.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.6rem}
+    .detail-ta{width:100%;min-height:90px;padding:.65rem .85rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:0.85rem;color:var(--ink);resize:vertical;outline:none;transition:border-color .15s;line-height:1.6}
+    .detail-ta:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(42,92,89,.1)}
+    .detail-ta.internal{background:#fffbeb;border-color:#fde68a}
+    .detail-ta.internal:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(168,124,42,.1)}
+    .internal-tag{font-size:0.7rem;color:var(--gold);font-weight:600;margin-top:.35rem}
+    .detail-footer{padding:1rem 1.5rem;border-top:1px solid var(--rule);display:flex;gap:.6rem;align-items:center;background:var(--bg);flex-wrap:wrap}
+    .status-sel{padding:.5rem .75rem;border:1px solid var(--rule-mid);border-radius:6px;font-family:inherit;font-size:0.8rem;color:var(--ink);background:var(--white);outline:none;flex:1;min-width:120px}
+    .btn-save{padding:.55rem 1.1rem;background:var(--teal);color:#fff;border:none;border-radius:6px;font-family:inherit;font-weight:700;font-size:0.8rem;cursor:pointer}
+    .btn-save:hover{background:var(--teal-l)}
+    .btn-pub{padding:.55rem 1.1rem;background:#059669;color:#fff;border:none;border-radius:6px;font-family:inherit;font-weight:700;font-size:0.8rem;cursor:pointer}
+    .btn-pub:hover{background:#047857}
+
+    /* BUYERS PANEL */
+    .buyers-list{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem}
+    .buyer-row{background:var(--white);border:1px solid var(--rule);border-radius:8px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    .buyer-name{font-weight:700;font-size:0.875rem;color:var(--ink)}
+    .buyer-email{font-size:0.75rem;color:var(--ink-soft)}
+    .buyer-link{font-size:0.72rem;color:var(--teal);font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+    .buyer-link:hover{text-decoration:underline}
+    .add-buyer-form{background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem}
+    .add-buyer-form h4{font-size:0.82rem;font-weight:700;color:var(--ink);margin-bottom:1rem}
+    .inline-form{display:flex;gap:.75rem;flex-wrap:wrap}
+    .inline-form .form-input{flex:1;min-width:150px;margin-top:0}
+    .btn-add{padding:.65rem 1.25rem;background:var(--teal);color:#fff;border:none;border-radius:7px;font-family:inherit;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap}
+    .btn-add:hover{background:var(--teal-l)}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--ink);color:#fff;padding:.75rem 1.25rem;border-radius:8px;font-size:0.82rem;font-weight:500;z-index:9999;transform:translateY(8px);opacity:0;transition:all .25s;pointer-events:none;max-width:320px}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{background:#059669}
+    .toast.error{background:#dc2626}
+
+    .loading-row{text-align:center;padding:2rem;color:var(--ink-faint);font-size:0.85rem}
+    .back-btn{display:inline-flex;align-items:center;gap:.4rem;font-size:0.78rem;font-weight:600;color:var(--ink-soft);cursor:pointer;padding:.35rem .6rem;border-radius:6px;transition:all .15s;margin-bottom:.75rem;border:none;background:transparent;font-family:inherit}
+    .back-btn:hover{background:var(--bg);color:var(--ink)}
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="screen active" id="screen-auth">
+  <div class="auth-wrap">
+    <div class="auth-logo">Question<span>Pilot</span></div>
+    <div class="auth-card">
+      <div id="auth-login-view">
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to your account.</p>
+        <div class="auth-error" id="login-error"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="login-email" placeholder="you@yourfirm.com"/></div>
+        <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="login-pass" placeholder="Password"/></div>
+        <button class="btn-primary" id="btn-login">Sign In</button>
+        <p class="auth-switch">No account? <a onclick="toggleAuth()">Create one free</a></p>
+      </div>
+      <div id="auth-signup-view" style="display:none">
+        <h2>Create account</h2>
+        <p class="sub">Get started with Question Pilot.</p>
+        <div class="auth-error" id="signup-error"></div>
+        <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" type="text" id="signup-name" placeholder="Jane Smith"/></div>
+        <div class="form-group"><label class="form-label">Firm Name</label><input class="form-input" type="text" id="signup-firm" placeholder="Your Advisory Firm LLC"/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="signup-email" placeholder="you@yourfirm.com"/></div>
+        <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="signup-pass" placeholder="Create a password"/></div>
+        <button class="btn-primary" id="btn-signup">Create Account</button>
+        <p class="auth-switch">Already have an account? <a onclick="toggleAuth()">Sign in</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div class="screen" id="screen-app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">Question<span>Pilot</span></div>
+    <div class="sidebar-nav">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="showView('dashboard')">
+        <span>📊</span> Dashboard
+      </div>
+      <div class="nav-item" id="nav-deals" onclick="showView('deals')">
+        <span>📁</span> All Deals
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip" onclick="handleSignOut()">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div>
+          <div class="user-name" id="user-name">Loading...</div>
+          <div class="user-email" id="user-email-display">Sign out</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <button class="btn-sm btn-teal" id="btn-new-deal" onclick="openNewDealModal()">+ New Deal</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD VIEW -->
+      <div class="view active" id="view-dashboard">
+        <div class="stat-row">
+          <div class="stat-card"><div class="stat-label">Active Deals</div><div class="stat-value" id="stat-deals">0</div><div class="stat-sub">In progress</div></div>
+          <div class="stat-card"><div class="stat-label">Total Buyers</div><div class="stat-value" id="stat-buyers">0</div><div class="stat-sub">Across all deals</div></div>
+          <div class="stat-card"><div class="stat-label">Open Questions</div><div class="stat-value" id="stat-open">0</div><div class="stat-sub">Awaiting response</div></div>
+          <div class="stat-card"><div class="stat-label">Published</div><div class="stat-value" id="stat-pub">0</div><div class="stat-sub">Responses live</div></div>
+        </div>
+        <div class="section-title">Recent Deals</div>
+        <div id="dashboard-deals"><div class="loading-row">Loading...</div></div>
+      </div>
+
+      <!-- ALL DEALS VIEW -->
+      <div class="view" id="view-deals">
+        <div class="section-title">All Deals</div>
+        <div id="all-deals-list"><div class="loading-row">Loading...</div></div>
+      </div>
+
+      <!-- DEAL DETAIL VIEW -->
+      <div class="view" id="view-deal-detail">
+        <button class="back-btn" onclick="showView('deals')">&#8592; Back to Deals</button>
+        <div class="tracker-header">
+          <div>
+            <h2 id="deal-detail-name">Deal Name</h2>
+            <p id="deal-detail-meta">Loading...</p>
+          </div>
+          <div class="view-toggle">
+            <button class="toggle-btn active" id="toggle-advisor" onclick="setPortalView('advisor')">Advisor View</button>
+            <button class="toggle-btn" id="toggle-buyer" onclick="setPortalView('buyer')">Buyer View</button>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div style="display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--rule);padding-bottom:.75rem">
+          <button class="btn-sm btn-teal" id="deal-tab-tracker" onclick="setDealTab('tracker')">Tracker</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Buyers</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-add-q" onclick="setDealTab('add-q')">+ Add Question</button>
+        </div>
+
+        <!-- TRACKER TAB -->
+        <div id="deal-tab-content-tracker">
+          <div class="tstat-row" id="tracker-stats"></div>
+          <div class="tracker-toolbar">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search questions..." id="q-search" oninput="filterQuestions()"/>
+            </div>
+            <select class="filter-sel" id="q-filter-status" onchange="filterQuestions()">
+              <option value="">All Statuses</option>
+              <option value="open">Open</option>
+              <option value="in_review">In Review</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+            <select class="filter-sel" id="q-filter-buyer" onchange="filterQuestions()">
+              <option value="">All Buyers</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr id="tbl-head-advisor">
+                  <th>Counterparty</th><th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="questions-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- BUYERS TAB -->
+        <div id="deal-tab-content-buyers" style="display:none">
+          <div class="buyers-list" id="buyers-list"></div>
+          <div class="add-buyer-form">
+            <h4>Add a Buyer</h4>
+            <div class="inline-form">
+              <input class="form-input" type="text" id="new-buyer-name" placeholder="Buyer / Firm Name"/>
+              <input class="form-input" type="email" id="new-buyer-email" placeholder="contact@buyerfirm.com"/>
+              <button class="btn-add" onclick="addBuyer()">Add Buyer</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADD QUESTION TAB -->
+        <div id="deal-tab-content-add-q" style="display:none">
+          <div class="modal" style="max-width:600px;box-shadow:var(--shadow)">
+            <h3>Add a Question</h3>
+            <p class="sub">Add a question from a buyer to the tracker.</p>
+            <div class="form-group">
+              <label class="form-label">Buyer</label>
+              <select class="form-input" id="new-q-buyer"></select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+              <div class="form-group">
+                <label class="form-label">Category</label>
+                <select class="form-input" id="new-q-cat">
+                  <option>Financial</option><option>Legal</option><option>Operations</option>
+                  <option>HR</option><option>Tax</option><option>IT</option><option>Commercial</option><option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Question Number</label>
+                <input class="form-input" type="text" id="new-q-num" placeholder="e.g. 2.1"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Question Text</label>
+              <textarea class="detail-ta" id="new-q-text" rows="3" placeholder="Enter the question as submitted by the buyer..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">VDR Reference</label>
+              <input class="form-input" type="text" id="new-q-vdr" placeholder="e.g. 2.1"/>
+            </div>
+            <button class="btn-primary" onclick="addQuestion()" style="margin-top:.5rem">Add to Tracker</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- NEW DEAL MODAL -->
+<div class="modal-overlay" id="modal-new-deal">
+  <div class="modal">
+    <h3>Create New Deal</h3>
+    <p class="sub">Set up a new transaction tracker.</p>
+    <div class="form-group"><label class="form-label">Deal Name / Project Code</label><input class="form-input" type="text" id="new-deal-name" placeholder="e.g. Project Atlas"/></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-new-deal')">Cancel</button>
+      <button class="btn-confirm" id="btn-create-deal" onclick="createDeal()">Create Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUESTION DETAIL PANEL -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-backdrop" onclick="closeDetail()"></div>
+  <div class="detail-panel">
+    <div class="detail-header">
+      <div style="flex:1;min-width:0">
+        <div class="detail-meta" id="detail-meta"></div>
+        <div class="detail-q" id="detail-q-text"></div>
+      </div>
+      <button class="detail-close" onclick="closeDetail()">&#x2715;</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-sec" id="detail-advisor-sections">
+        <h4>Internal Notes <span style="font-size:.65rem;color:var(--ink-faint);font-weight:400;text-transform:none;letter-spacing:0">(never visible to buyer)</span></h4>
+        <textarea class="detail-ta internal" id="detail-internal" placeholder="Add internal notes, context, or advisor commentary..."></textarea>
+        <div class="internal-tag">&#128274; Internal only</div>
+      </div>
+      <div class="detail-sec">
+        <h4 id="detail-response-label">Client Response Draft</h4>
+        <textarea class="detail-ta" id="detail-response" placeholder="Draft the response here..."></textarea>
+      </div>
+      <div class="detail-sec" id="detail-published-sec" style="display:none">
+        <h4>Published Response <span style="font-size:.65rem;color:#065f46;font-weight:400;text-transform:none;letter-spacing:0">(visible to buyer)</span></h4>
+        <textarea class="detail-ta" id="detail-published" placeholder="Published response..."></textarea>
+      </div>
+    </div>
+    <div class="detail-footer">
+      <select class="status-sel" id="detail-status">
+        <option value="open">Open</option>
+        <option value="in_review">In Review</option>
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+      <button class="btn-save" onclick="saveQuestion()">Save</button>
+      <button class="btn-pub" onclick="publishQuestion()">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL = 'https://xhrkwjeavxwonodgxjpt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhocmt3amVhdnh3b25vZGd4anB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MzExNDIsImV4cCI6MjA4OTAwNzE0Mn0.PtKh31LdRXkat5n-av9W19GlKxH2sZj7naA4Eil6kQk';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentFirmId = null;
+let currentDeal = null;
+let allQuestions = [];
+let allBuyers = [];
+let currentQuestion = null;
+let portalView = 'advisor';
+
+// ── INIT ──
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await loadUserProfile();
+    showApp();
+  }
+  db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      await loadUserProfile();
+      showApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      currentFirmId = null;
+      showAuth();
+    }
+  });
+}
+
+async function loadUserProfile() {
+  const { data } = await db.from('profiles').select('*, firms(*)').eq('id', currentUser.id).single();
+  if (data) {
+    currentFirmId = data.firm_id;
+    const initials = (data.full_name || currentUser.email).substring(0,2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('user-name').textContent = data.full_name || 'Advisor';
+    document.getElementById('user-email-display').textContent = currentUser.email;
+  }
+}
+
+// ── AUTH ──
+function showAuth() {
+  document.getElementById('screen-auth').classList.add('active');
+  document.getElementById('screen-app').classList.remove('active');
+}
+function showApp() {
+  document.getElementById('screen-auth').classList.remove('active');
+  document.getElementById('screen-app').classList.add('active');
+  loadDashboard();
+}
+function toggleAuth() {
+  const l = document.getElementById('auth-login-view');
+  const s = document.getElementById('auth-signup-view');
+  l.style.display = l.style.display === 'none' ? 'block' : 'none';
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+}
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const { error } = await db.auth.signInWithPassword({ email, password: pass });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); }
+  btn.disabled = false; btn.textContent = 'Sign In';
+});
+
+document.getElementById('btn-signup').addEventListener('click', async () => {
+  const name = document.getElementById('signup-name').value.trim();
+  const firmName = document.getElementById('signup-firm').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  const errEl = document.getElementById('signup-error');
+  errEl.classList.remove('show');
+  if (!name || !email || !pass) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; } }
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name, firm_name: firmName } } });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+  if (data.user) {
+    // Create firm and profile
+    const { data: firm } = await db.from('firms').insert({ name: firmName || 'My Firm' }).select().single();
+    if (firm) {
+      await db.from('profiles').insert({ id: data.user.id, firm_id: firm.id, full_name: name, email: email });
+    }
+    toast('Account created! Check your email to confirm.', 'success');
+  }
+  btn.disabled = false; btn.textContent = 'Create Account';
+});
+
+async function handleSignOut() {
+  await db.auth.signOut();
+  toast('Signed out.');
+}
+
+// ── VIEWS ──
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+  const titles = { dashboard: 'Dashboard', deals: 'All Deals' };
+  if (titles[name]) document.getElementById('topbar-title').textContent = titles[name];
+  if (name === 'deals') loadAllDeals();
+  if (name === 'dashboard') loadDashboard();
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  if (!currentFirmId) return;
+  const { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).eq('status', 'active');
+  const { data: buyers } = await db.from('buyers').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId);
+  const { data: openQ } = await db.from('questions').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'open');
+  const { data: pubQ } = await db.from('questions').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'published');
+  document.getElementById('stat-deals').textContent = (deals || []).length;
+  document.getElementById('stat-buyers').textContent = (buyers || []).length;
+  document.getElementById('stat-open').textContent = (openQ || []).length;
+  document.getElementById('stat-pub').textContent = (pubQ || []).length;
+  renderDealCards('dashboard-deals', deals || []);
+}
+
+function renderDealCards(containerId, deals) {
+  const el = document.getElementById(containerId);
+  if (!deals.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
+    return;
+  }
+  el.innerHTML = '<div class="deals-grid">' + deals.map(d => `
+    <div class="deal-card" data-deal-id="${d.id}" data-deal-name="${d.name.replace(/"/g,'&quot;')}" onclick="openDealFromCard(this)">
+      <div class="deal-card-top">
+        <div>
+          <div class="deal-name">${d.name}</div>
+          <div class="deal-date">${new Date(d.created_at).toLocaleDateString()}</div>
+        </div>
+        <span class="deal-badge">Active</span>
+      </div>
+      <div class="deal-stats">
+        <span class="deal-stat"><strong id="ds-buyers-${d.id}">-</strong> buyers</span>
+        <span class="deal-stat"><strong id="ds-q-${d.id}">-</strong> questions</span>
+      </div>
+    </div>`).join('') + '</div>';
+  deals.forEach(async d => {
+    const { count: bc } = await db.from('buyers').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
+    const { count: qc } = await db.from('questions').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
+    const bEl = document.getElementById('ds-buyers-' + d.id);
+    const qEl = document.getElementById('ds-q-' + d.id);
+    if (bEl) bEl.textContent = bc || 0;
+    if (qEl) qEl.textContent = qc || 0;
+  });
+}
+
+async function loadAllDeals() {
+  if (!currentFirmId) return;
+  const { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).order('created_at', { ascending: false });
+  renderDealCards('all-deals-list', deals || []);
+}
+
+// ── NEW DEAL ──
+function openNewDealModal() { document.getElementById('modal-new-deal').classList.add('open'); document.getElementById('new-deal-name').focus(); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function createDeal() {
+  const name = document.getElementById('new-deal-name').value.trim();
+  if (!name) { toast('Please enter a deal name.', 'error'); return; }
+  const btn = document.getElementById('btn-create-deal');
+  btn.disabled = true; btn.textContent = 'Creating...';
+  const { data, error } = await db.from('deals').insert({ name, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
+  btn.disabled = false; btn.textContent = 'Create Deal';
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  closeModal('modal-new-deal');
+  document.getElementById('new-deal-name').value = '';
+  toast('Deal created!', 'success');
+  openDeal(data.id, data.name);
+}
+
+// ── DEAL DETAIL ──
+async function openDeal(dealId, dealName) {
+  currentDeal = { id: dealId, name: unescape(dealName) };
+  document.getElementById('deal-detail-name').textContent = currentDeal.name;
+  document.getElementById('topbar-title').textContent = currentDeal.name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-deal-detail').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  setDealTab('tracker');
+  await loadDealData();
+}
+
+async function loadDealData() {
+  const { data: buyers } = await db.from('buyers').select('*').eq('deal_id', currentDeal.id);
+  allBuyers = buyers || [];
+  const { data: questions } = await db.from('questions').select('*').eq('deal_id', currentDeal.id).order('created_at', { ascending: true });
+  allQuestions = questions || [];
+  document.getElementById('deal-detail-meta').textContent = `${allBuyers.length} buyer${allBuyers.length !== 1 ? 's' : ''} · ${allQuestions.length} questions`;
+  renderTrackerStats();
+  renderQuestions();
+  renderBuyers();
+  populateBuyerDropdowns();
+}
+
+function renderTrackerStats() {
+  const counts = { open: 0, in_review: 0, draft: 0, published: 0 };
+  allQuestions.forEach(q => { if (counts[q.status] !== undefined) counts[q.status]++; });
+  document.getElementById('tracker-stats').innerHTML = `
+    <div class="tstat"><div class="tstat-dot" style="background:#dbeafe;border:1.5px solid #3b82f6"></div><strong>${counts.open}</strong>&nbsp;Open</div>
+    <div class="tstat"><div class="tstat-dot" style="background:#fef3c7;border:1.5px solid #f59e0b"></div><strong>${counts.in_review}</strong>&nbsp;In Review</div>
+    <div class="tstat"><div class="tstat-dot" style="background:#f3f4f6;border:1.5px solid #9ca3af"></div><strong>${counts.draft}</strong>&nbsp;Draft</div>
+    <div class="tstat"><div class="tstat-dot" style="background:#d1fae5;border:1.5px solid #10b981"></div><strong>${counts.published}</strong>&nbsp;Published</div>`;
+}
+
+const cpColors = ['cp-0','cp-1','cp-2','cp-3','cp-4'];
+function buyerColor(buyerId) {
+  const idx = allBuyers.findIndex(b => b.id === buyerId);
+  return cpColors[idx % cpColors.length];
+}
+function buyerName(buyerId) {
+  const b = allBuyers.find(b => b.id === buyerId);
+  return b ? b.name : 'Unknown';
+}
+function statusBadge(s) {
+  const map = { open: 'sp-open', in_review: 'sp-review', draft: 'sp-draft', published: 'sp-pub' };
+  const labels = { open: 'Open', in_review: 'In Review', draft: 'Draft', published: 'Published' };
+  return `<span class="sp ${map[s] || 'sp-open'}">${labels[s] || s}</span>`;
+}
+
+function renderQuestions() {
+  const search = (document.getElementById('q-search').value || '').toLowerCase();
+  const statusF = document.getElementById('q-filter-status').value;
+  const buyerF = document.getElementById('q-filter-buyer').value;
+  let qs = allQuestions;
+  if (search) qs = qs.filter(q => q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search));
+  if (statusF) qs = qs.filter(q => q.status === statusF);
+  if (buyerF) qs = qs.filter(q => q.buyer_id === buyerF);
+  if (portalView === 'buyer') {
+    // Show only published, no internal data
+    qs = qs.filter(q => q.status === 'published');
+  }
+  const tbody = document.getElementById('questions-tbody');
+  if (!qs.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>'; return; }
+  tbody.innerHTML = qs.map(q => `
+    <tr onclick="openQuestion('${q.id}')">
+      <td><span class="cp ${buyerColor(q.buyer_id)}">${buyerName(q.buyer_id)}</span></td>
+      <td><span class="cat-badge">${q.category || ''}</span></td>
+      <td><span class="qnum">${q.question_number || ''}</span></td>
+      <td style="max-width:320px">${q.question_text}</td>
+      <td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">${q.vdr_reference || ''}</td>
+      <td>${statusBadge(q.status)}</td>
+    </tr>`).join('');
+}
+
+function filterQuestions() { renderQuestions(); }
+
+function renderBuyers() {
+  const el = document.getElementById('buyers-list');
+  if (!allBuyers.length) { el.innerHTML = '<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>'; return; }
+  el.innerHTML = allBuyers.map(b => `
+    <div class="buyer-row">
+      <div>
+        <div class="buyer-name">${b.name}</div>
+        <div class="buyer-email">${b.email || 'No email set'}</div>
+      </div>
+      <a class="buyer-link" onclick="copyBuyerLink('${b.access_token}')">Copy Portal Link</a>
+    </div>`).join('');
+}
+
+function copyBuyerLink(token) {
+  const link = window.location.origin + window.location.pathname + '?buyer=' + token;
+  navigator.clipboard.writeText(link).then(() => toast('Portal link copied!', 'success'));
+}
+
+function populateBuyerDropdowns() {
+  const sel = document.getElementById('new-q-buyer');
+  const fSel = document.getElementById('q-filter-buyer');
+  sel.innerHTML = allBuyers.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  fSel.innerHTML = '<option value="">All Buyers</option>' + allBuyers.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+}
+
+async function addBuyer() {
+  const name = document.getElementById('new-buyer-name').value.trim();
+  const email = document.getElementById('new-buyer-email').value.trim();
+  if (!name) { toast('Buyer name required.', 'error'); return; }
+  const { error } = await db.from('buyers').insert({ deal_id: currentDeal.id, name, email });
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  document.getElementById('new-buyer-name').value = '';
+  document.getElementById('new-buyer-email').value = '';
+  toast('Buyer added!', 'success');
+  await loadDealData();
+}
+
+async function addQuestion() {
+  const buyer_id = document.getElementById('new-q-buyer').value;
+  const category = document.getElementById('new-q-cat').value;
+  const question_number = document.getElementById('new-q-num').value.trim();
+  const question_text = document.getElementById('new-q-text').value.trim();
+  const vdr_reference = document.getElementById('new-q-vdr').value.trim();
+  if (!question_text) { toast('Question text required.', 'error'); return; }
+  if (!buyer_id) { toast('Please add a buyer first.', 'error'); return; }
+  const { error } = await db.from('questions').insert({ deal_id: currentDeal.id, buyer_id, category, question_number, question_text, vdr_reference, status: 'open' });
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  document.getElementById('new-q-text').value = '';
+  document.getElementById('new-q-num').value = '';
+  document.getElementById('new-q-vdr').value = '';
+  toast('Question added!', 'success');
+  setDealTab('tracker');
+  await loadDealData();
+}
+
+// ── QUESTION DETAIL ──
+function openQuestion(qId) {
+  currentQuestion = allQuestions.find(q => q.id === qId);
+  if (!currentQuestion) return;
+  const isAdvisor = portalView === 'advisor';
+  document.getElementById('detail-meta').innerHTML = `
+    <span class="cp ${buyerColor(currentQuestion.buyer_id)}">${buyerName(currentQuestion.buyer_id)}</span>
+    <span class="cat-badge">${currentQuestion.category || ''}</span>
+    <span class="qnum">${currentQuestion.question_number || ''}</span>
+    ${statusBadge(currentQuestion.status)}`;
+  document.getElementById('detail-q-text').textContent = currentQuestion.question_text;
+  document.getElementById('detail-internal').value = currentQuestion.internal_notes || '';
+  document.getElementById('detail-response').value = currentQuestion.client_response || '';
+  document.getElementById('detail-published').value = currentQuestion.published_response || '';
+  document.getElementById('detail-status').value = currentQuestion.status;
+  document.getElementById('detail-advisor-sections').style.display = isAdvisor ? 'block' : 'none';
+  document.getElementById('detail-response-label').textContent = isAdvisor ? 'Response Draft' : 'Response';
+  document.getElementById('detail-published-sec').style.display = currentQuestion.status === 'published' ? 'block' : 'none';
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); currentQuestion = null; }
+
+async function saveQuestion() {
+  if (!currentQuestion) return;
+  const updates = {
+    internal_notes: document.getElementById('detail-internal').value,
+    client_response: document.getElementById('detail-response').value,
+    status: document.getElementById('detail-status').value,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await db.from('questions').update(updates).eq('id', currentQuestion.id);
+  if (error) { toast('Error saving.', 'error'); return; }
+  toast('Saved!', 'success');
+  closeDetail();
+  await loadDealData();
+}
+
+async function publishQuestion() {
+  if (!currentQuestion) return;
+  const response = document.getElementById('detail-response').value.trim();
+  if (!response) { toast('Add a response before publishing.', 'error'); return; }
+  const { error } = await db.from('questions').update({
+    status: 'published',
+    published_response: response,
+    client_response: response,
+    internal_notes: document.getElementById('detail-internal').value,
+    updated_at: new Date().toISOString()
+  }).eq('id', currentQuestion.id);
+  if (error) { toast('Error publishing.', 'error'); return; }
+  toast('Published to buyer!', 'success');
+  closeDetail();
+  await loadDealData();
+}
+
+// ── TABS ──
+function setDealTab(tab) {
+  ['tracker','buyers','add-q'].forEach(t => {
+    document.getElementById('deal-tab-content-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.getElementById('deal-tab-' + t);
+    if (btn) { btn.className = 'btn-sm ' + (t === tab ? 'btn-teal' : 'btn-ghost'); }
+  });
+}
+
+function setPortalView(v) {
+  portalView = v;
+  document.getElementById('toggle-advisor').className = 'toggle-btn' + (v === 'advisor' ? ' active' : '');
+  document.getElementById('toggle-buyer').className = 'toggle-btn' + (v === 'buyer' ? ' active' : '');
+  renderQuestions();
+  if (v === 'buyer') toast('Viewing as buyer — internal notes hidden');
+}
+
+// ── TOAST ──
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── BUYER PORTAL MODE ──
+function checkBuyerPortal() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('buyer');
+  if (token) {
+    // Show a simplified buyer view
+    document.getElementById('screen-auth').style.display = 'none';
+    loadBuyerPortal(token);
+    return true;
+  }
+  return false;
+}
+
+async function loadBuyerPortal(token) {
+  const appEl = document.getElementById('screen-app');
+  appEl.style.display = 'flex';
+  appEl.classList.add('active');
+  const { data: buyer } = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
+  if (!buyer) { appEl.innerHTML = '<div style="padding:4rem;text-align:center;color:#888">Invalid or expired portal link.</div>'; return; }
+  currentDeal = buyer.deals;
+  allBuyers = [buyer];
+  const { data: questions } = await db.from('questions').select('*').eq('deal_id', buyer.deal_id).eq('buyer_id', buyer.id).eq('status','published').order('created_at');
+  allQuestions = questions || [];
+  // Hide sidebar, show clean buyer view
+  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.topbar').innerHTML = '<div style="font-size:1rem;font-weight:800;letter-spacing:-0.02em">Question<span style="color:var(--teal)">Pilot</span>  <span style="font-size:.75rem;font-weight:500;color:var(--ink-soft)">' + buyer.deals.name + ' — ' + buyer.name + '</span></div>';
+  document.getElementById('btn-new-deal').style.display = 'none';
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-deal-detail').classList.add('active');
+  document.getElementById('deal-detail-name').textContent = buyer.deals.name;
+  document.getElementById('deal-detail-meta').textContent = `Your diligence questions · ${questions.length} published`;
+  document.querySelector('.view-toggle').style.display = 'none';
+  document.getElementById('deal-tab-buyers').style.display = 'none';
+  document.getElementById('deal-tab-add-q').style.display = 'none';
+  document.querySelector('.back-btn').style.display = 'none';
+  portalView = 'buyer';
+  setDealTab('tracker');
+  renderTrackerStats();
+  renderQuestions();
+  // Hide internal columns for buyer
+  document.getElementById('detail-advisor-sections').style.display = 'none';
+}
+
+// ── START ──
+if (!checkBuyerPortal()) { init(); }
+</script>
+</body>
+</html>
