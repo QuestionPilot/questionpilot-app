@@ -448,7 +448,7 @@ let allBuyers = [];
 let currentQuestion = null;
 let portalView = 'advisor';
 
-// ── INIT ──
+// INIT
 async function init() {
   const { data: { session } } = await db.auth.getSession();
   if (session) {
@@ -470,7 +470,7 @@ async function init() {
 }
 
 async function loadUserProfile() {
-  const { data } = await db.from('profiles').select('*, firms(*)').eq('id', currentUser.id).single();
+  const { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
   if (data) {
     currentFirmId = data.firm_id;
     const initials = (data.full_name || currentUser.email).substring(0,2).toUpperCase();
@@ -480,7 +480,7 @@ async function loadUserProfile() {
   }
 }
 
-// ── AUTH ──
+// AUTH
 function showAuth() {
   document.getElementById('screen-auth').classList.add('active');
   document.getElementById('screen-app').classList.remove('active');
@@ -502,39 +502,59 @@ function toggleAuth() {
   }
 }
 
-document.getElementById('btn-login').addEventListener('click', async () => {
+document.getElementById('btn-login').addEventListener('click', async function() {
   const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.classList.remove('show');
   const btn = document.getElementById('btn-login');
-  btn.disabled = true; btn.textContent = 'Signing in...';
-  const { error } = await db.auth.signInWithPassword({ email, password: pass });
-  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); }
-  btn.disabled = false; btn.textContent = 'Sign In';
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  const { error } = await db.auth.signInWithPassword({ email: email, password: pass });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('show');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Sign In';
 });
 
-document.getElementById('btn-signup').addEventListener('click', async () => {
+document.getElementById('btn-signup').addEventListener('click', async function() {
   const name = document.getElementById('signup-name').value.trim();
   const firmName = document.getElementById('signup-firm').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const pass = document.getElementById('signup-pass').value;
   const errEl = document.getElementById('signup-error');
   errEl.classList.remove('show');
-  if (!name || !email || !pass) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; } }
+  if (!name || !email || !pass) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.classList.add('show');
+    return;
+  }
   const btn = document.getElementById('btn-signup');
-  btn.disabled = true; btn.textContent = 'Creating account...';
-  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name, firm_name: firmName } } });
-  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+  const { data, error } = await db.auth.signUp({
+    email: email,
+    password: pass,
+    options: { data: { full_name: name, firm_name: firmName } }
+  });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Create Account';
+    return;
+  }
   if (data.user) {
-    // Create firm and profile
     const { data: firm } = await db.from('firms').insert({ name: firmName || 'My Firm' }).select().single();
     if (firm) {
       await db.from('profiles').insert({ id: data.user.id, firm_id: firm.id, full_name: name, email: email });
     }
     toast('Account created! Check your email to confirm.', 'success');
   }
-  btn.disabled = false; btn.textContent = 'Create Account';
+  btn.disabled = false;
+  btn.textContent = 'Create Account';
 });
 
 async function handleSignOut() {
@@ -542,11 +562,11 @@ async function handleSignOut() {
   toast('Signed out.');
 }
 
-// ── VIEWS ──
+// VIEWS
 function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
   document.getElementById('view-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   const navEl = document.getElementById('nav-' + name);
   if (navEl) navEl.classList.add('active');
   const titles = { dashboard: 'Dashboard', deals: 'All Deals' };
@@ -555,13 +575,13 @@ function showView(name) {
   if (name === 'dashboard') loadDashboard();
 }
 
-// ── DASHBOARD ──
+// DASHBOARD
 async function loadDashboard() {
   if (!currentFirmId) return;
   const { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).eq('status', 'active');
-  const { data: buyers } = await db.from('buyers').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId);
-  const { data: openQ } = await db.from('questions').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'open');
-  const { data: pubQ } = await db.from('questions').select('*, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'published');
+  const { data: buyers } = await db.from('buyers').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId);
+  const { data: openQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'open');
+  const { data: pubQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'published');
   document.getElementById('stat-deals').textContent = (deals || []).length;
   document.getElementById('stat-buyers').textContent = (buyers || []).length;
   document.getElementById('stat-open').textContent = (openQ || []).length;
@@ -572,31 +592,32 @@ async function loadDashboard() {
 function renderDealCards(containerId, deals) {
   const el = document.getElementById(containerId);
   if (!deals.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128193;</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
     return;
   }
-  el.innerHTML = '<div class="deals-grid">' + deals.map(d => `
-    <div class="deal-card" data-deal-id="${d.id}" data-deal-name="${d.name.replace(/"/g,'&quot;')}" onclick="openDealFromCard(this)">
-      <div class="deal-card-top">
-        <div>
-          <div class="deal-name">${d.name}</div>
-          <div class="deal-date">${new Date(d.created_at).toLocaleDateString()}</div>
-        </div>
-        <span class="deal-badge">Active</span>
-      </div>
-      <div class="deal-stats">
-        <span class="deal-stat"><strong id="ds-buyers-${d.id}">-</strong> buyers</span>
-        <span class="deal-stat"><strong id="ds-q-${d.id}">-</strong> questions</span>
-      </div>
-    </div>`).join('') + '</div>';
-  deals.forEach(async d => {
+  let html = '<div class="deals-grid">';
+  deals.forEach(function(d) {
+    html += '<div class="deal-card" data-id="' + d.id + '" data-name="' + d.name.replace(/"/g, '&quot;') + '" onclick="openDealFromCard(this)">';
+    html += '<div class="deal-card-top"><div><div class="deal-name">' + d.name + '</div>';
+    html += '<div class="deal-date">' + new Date(d.created_at).toLocaleDateString() + '</div></div>';
+    html += '<span class="deal-badge">Active</span></div>';
+    html += '<div class="deal-stats"><span class="deal-stat"><strong id="dsb-' + d.id + '">-</strong> buyers</span>';
+    html += '<span class="deal-stat"><strong id="dsq-' + d.id + '">-</strong> questions</span></div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  deals.forEach(async function(d) {
     const { count: bc } = await db.from('buyers').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
     const { count: qc } = await db.from('questions').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
-    const bEl = document.getElementById('ds-buyers-' + d.id);
-    const qEl = document.getElementById('ds-q-' + d.id);
+    const bEl = document.getElementById('dsb-' + d.id);
+    const qEl = document.getElementById('dsq-' + d.id);
     if (bEl) bEl.textContent = bc || 0;
     if (qEl) qEl.textContent = qc || 0;
   });
+}
+
+function openDealFromCard(el) {
+  openDeal(el.dataset.id, el.dataset.name);
 }
 
 async function loadAllDeals() {
@@ -605,17 +626,24 @@ async function loadAllDeals() {
   renderDealCards('all-deals-list', deals || []);
 }
 
-// ── NEW DEAL ──
-function openNewDealModal() { document.getElementById('modal-new-deal').classList.add('open'); document.getElementById('new-deal-name').focus(); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// NEW DEAL
+function openNewDealModal() {
+  document.getElementById('modal-new-deal').classList.add('open');
+  document.getElementById('new-deal-name').focus();
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
 
 async function createDeal() {
   const name = document.getElementById('new-deal-name').value.trim();
   if (!name) { toast('Please enter a deal name.', 'error'); return; }
   const btn = document.getElementById('btn-create-deal');
-  btn.disabled = true; btn.textContent = 'Creating...';
-  const { data, error } = await db.from('deals').insert({ name, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
-  btn.disabled = false; btn.textContent = 'Create Deal';
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  const { data, error } = await db.from('deals').insert({ name: name, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
+  btn.disabled = false;
+  btn.textContent = 'Create Deal';
   if (error) { toast('Error: ' + error.message, 'error'); return; }
   closeModal('modal-new-deal');
   document.getElementById('new-deal-name').value = '';
@@ -623,14 +651,14 @@ async function createDeal() {
   openDeal(data.id, data.name);
 }
 
-// ── DEAL DETAIL ──
+// DEAL DETAIL
 async function openDeal(dealId, dealName) {
-  currentDeal = { id: dealId, name: unescape(dealName) };
+  currentDeal = { id: dealId, name: dealName };
   document.getElementById('deal-detail-name').textContent = currentDeal.name;
   document.getElementById('topbar-title').textContent = currentDeal.name;
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
   document.getElementById('view-deal-detail').classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   setDealTab('tracker');
   await loadDealData();
 }
@@ -640,7 +668,7 @@ async function loadDealData() {
   allBuyers = buyers || [];
   const { data: questions } = await db.from('questions').select('*').eq('deal_id', currentDeal.id).order('created_at', { ascending: true });
   allQuestions = questions || [];
-  document.getElementById('deal-detail-meta').textContent = `${allBuyers.length} buyer${allBuyers.length !== 1 ? 's' : ''} · ${allQuestions.length} questions`;
+  document.getElementById('deal-detail-meta').textContent = allBuyers.length + ' buyer' + (allBuyers.length !== 1 ? 's' : '') + ' \u00b7 ' + allQuestions.length + ' questions';
   renderTrackerStats();
   renderQuestions();
   renderBuyers();
@@ -649,86 +677,89 @@ async function loadDealData() {
 
 function renderTrackerStats() {
   const counts = { open: 0, in_review: 0, draft: 0, published: 0 };
-  allQuestions.forEach(q => { if (counts[q.status] !== undefined) counts[q.status]++; });
-  document.getElementById('tracker-stats').innerHTML = `
-    <div class="tstat"><div class="tstat-dot" style="background:#dbeafe;border:1.5px solid #3b82f6"></div><strong>${counts.open}</strong>&nbsp;Open</div>
-    <div class="tstat"><div class="tstat-dot" style="background:#fef3c7;border:1.5px solid #f59e0b"></div><strong>${counts.in_review}</strong>&nbsp;In Review</div>
-    <div class="tstat"><div class="tstat-dot" style="background:#f3f4f6;border:1.5px solid #9ca3af"></div><strong>${counts.draft}</strong>&nbsp;Draft</div>
-    <div class="tstat"><div class="tstat-dot" style="background:#d1fae5;border:1.5px solid #10b981"></div><strong>${counts.published}</strong>&nbsp;Published</div>`;
+  allQuestions.forEach(function(q) { if (counts[q.status] !== undefined) counts[q.status]++; });
+  document.getElementById('tracker-stats').innerHTML =
+    '<div class="tstat"><div class="tstat-dot" style="background:#dbeafe;border:1.5px solid #3b82f6"></div><strong>' + counts.open + '</strong>&nbsp;Open</div>' +
+    '<div class="tstat"><div class="tstat-dot" style="background:#fef3c7;border:1.5px solid #f59e0b"></div><strong>' + counts.in_review + '</strong>&nbsp;In Review</div>' +
+    '<div class="tstat"><div class="tstat-dot" style="background:#f3f4f6;border:1.5px solid #9ca3af"></div><strong>' + counts.draft + '</strong>&nbsp;Draft</div>' +
+    '<div class="tstat"><div class="tstat-dot" style="background:#d1fae5;border:1.5px solid #10b981"></div><strong>' + counts.published + '</strong>&nbsp;Published</div>';
 }
 
 const cpColors = ['cp-0','cp-1','cp-2','cp-3','cp-4'];
 function buyerColor(buyerId) {
-  const idx = allBuyers.findIndex(b => b.id === buyerId);
-  return cpColors[idx % cpColors.length];
+  const idx = allBuyers.findIndex(function(b) { return b.id === buyerId; });
+  return cpColors[Math.max(0,idx) % cpColors.length];
 }
 function buyerName(buyerId) {
-  const b = allBuyers.find(b => b.id === buyerId);
+  const b = allBuyers.find(function(b) { return b.id === buyerId; });
   return b ? b.name : 'Unknown';
 }
 function statusBadge(s) {
   const map = { open: 'sp-open', in_review: 'sp-review', draft: 'sp-draft', published: 'sp-pub' };
   const labels = { open: 'Open', in_review: 'In Review', draft: 'Draft', published: 'Published' };
-  return `<span class="sp ${map[s] || 'sp-open'}">${labels[s] || s}</span>`;
+  return '<span class="sp ' + (map[s] || 'sp-open') + '">' + (labels[s] || s) + '</span>';
 }
 
 function renderQuestions() {
   const search = (document.getElementById('q-search').value || '').toLowerCase();
   const statusF = document.getElementById('q-filter-status').value;
   const buyerF = document.getElementById('q-filter-buyer').value;
-  let qs = allQuestions;
-  if (search) qs = qs.filter(q => q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search));
-  if (statusF) qs = qs.filter(q => q.status === statusF);
-  if (buyerF) qs = qs.filter(q => q.buyer_id === buyerF);
-  if (portalView === 'buyer') {
-    // Show only published, no internal data
-    qs = qs.filter(q => q.status === 'published');
-  }
+  let qs = allQuestions.slice();
+  if (search) qs = qs.filter(function(q) { return q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search); });
+  if (statusF) qs = qs.filter(function(q) { return q.status === statusF; });
+  if (buyerF) qs = qs.filter(function(q) { return q.buyer_id === buyerF; });
+  if (portalView === 'buyer') qs = qs.filter(function(q) { return q.status === 'published'; });
   const tbody = document.getElementById('questions-tbody');
   if (!qs.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>'; return; }
-  tbody.innerHTML = qs.map(q => `
-    <tr onclick="openQuestion('${q.id}')">
-      <td><span class="cp ${buyerColor(q.buyer_id)}">${buyerName(q.buyer_id)}</span></td>
-      <td><span class="cat-badge">${q.category || ''}</span></td>
-      <td><span class="qnum">${q.question_number || ''}</span></td>
-      <td style="max-width:320px">${q.question_text}</td>
-      <td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">${q.vdr_reference || ''}</td>
-      <td>${statusBadge(q.status)}</td>
-    </tr>`).join('');
+  let html = '';
+  qs.forEach(function(q) {
+    html += '<tr data-qid="' + q.id + '" onclick="openQuestion(this.dataset.qid)">';
+    html += '<td><span class="cp ' + buyerColor(q.buyer_id) + '">' + buyerName(q.buyer_id) + '</span></td>';
+    html += '<td><span class="cat-badge">' + (q.category || '') + '</span></td>';
+    html += '<td><span class="qnum">' + (q.question_number || '') + '</span></td>';
+    html += '<td style="max-width:320px">' + q.question_text + '</td>';
+    html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (q.vdr_reference || '') + '</td>';
+    html += '<td>' + statusBadge(q.status) + '</td></tr>';
+  });
+  tbody.innerHTML = html;
 }
 
 function filterQuestions() { renderQuestions(); }
 
 function renderBuyers() {
   const el = document.getElementById('buyers-list');
-  if (!allBuyers.length) { el.innerHTML = '<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>'; return; }
-  el.innerHTML = allBuyers.map(b => `
-    <div class="buyer-row">
-      <div>
-        <div class="buyer-name">${b.name}</div>
-        <div class="buyer-email">${b.email || 'No email set'}</div>
-      </div>
-      <a class="buyer-link" onclick="copyBuyerLink('${b.access_token}')">Copy Portal Link</a>
-    </div>`).join('');
+  if (!allBuyers.length) {
+    el.innerHTML = '<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>';
+    return;
+  }
+  let html = '';
+  allBuyers.forEach(function(b) {
+    html += '<div class="buyer-row"><div><div class="buyer-name">' + b.name + '</div>';
+    html += '<div class="buyer-email">' + (b.email || 'No email set') + '</div></div>';
+    html += '<a class="buyer-link" href="#" data-token="' + b.access_token + '" onclick="event.preventDefault();copyBuyerLink(this.dataset.token)">Copy Portal Link</a></div>';
+  });
+  el.innerHTML = html;
 }
 
 function copyBuyerLink(token) {
   const link = window.location.origin + window.location.pathname + '?buyer=' + token;
-  navigator.clipboard.writeText(link).then(() => toast('Portal link copied!', 'success'));
+  navigator.clipboard.writeText(link).then(function() { toast('Portal link copied!', 'success'); });
 }
 
 function populateBuyerDropdowns() {
   const sel = document.getElementById('new-q-buyer');
   const fSel = document.getElementById('q-filter-buyer');
-  sel.innerHTML = allBuyers.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-  fSel.innerHTML = '<option value="">All Buyers</option>' + allBuyers.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  let opts = '';
+  allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
+  sel.innerHTML = opts;
+  fSel.innerHTML = '<option value="">All Buyers</option>' + opts;
 }
 
 async function addBuyer() {
   const name = document.getElementById('new-buyer-name').value.trim();
   const email = document.getElementById('new-buyer-email').value.trim();
   if (!name) { toast('Buyer name required.', 'error'); return; }
-  const { error } = await db.from('buyers').insert({ deal_id: currentDeal.id, name, email });
+  const { error } = await db.from('buyers').insert({ deal_id: currentDeal.id, name: name, email: email });
   if (error) { toast('Error: ' + error.message, 'error'); return; }
   document.getElementById('new-buyer-name').value = '';
   document.getElementById('new-buyer-email').value = '';
@@ -744,7 +775,7 @@ async function addQuestion() {
   const vdr_reference = document.getElementById('new-q-vdr').value.trim();
   if (!question_text) { toast('Question text required.', 'error'); return; }
   if (!buyer_id) { toast('Please add a buyer first.', 'error'); return; }
-  const { error } = await db.from('questions').insert({ deal_id: currentDeal.id, buyer_id, category, question_number, question_text, vdr_reference, status: 'open' });
+  const { error } = await db.from('questions').insert({ deal_id: currentDeal.id, buyer_id: buyer_id, category: category, question_number: question_number, question_text: question_text, vdr_reference: vdr_reference, status: 'open' });
   if (error) { toast('Error: ' + error.message, 'error'); return; }
   document.getElementById('new-q-text').value = '';
   document.getElementById('new-q-num').value = '';
@@ -754,16 +785,16 @@ async function addQuestion() {
   await loadDealData();
 }
 
-// ── QUESTION DETAIL ──
+// QUESTION DETAIL
 function openQuestion(qId) {
-  currentQuestion = allQuestions.find(q => q.id === qId);
+  currentQuestion = allQuestions.find(function(q) { return q.id === qId; });
   if (!currentQuestion) return;
   const isAdvisor = portalView === 'advisor';
-  document.getElementById('detail-meta').innerHTML = `
-    <span class="cp ${buyerColor(currentQuestion.buyer_id)}">${buyerName(currentQuestion.buyer_id)}</span>
-    <span class="cat-badge">${currentQuestion.category || ''}</span>
-    <span class="qnum">${currentQuestion.question_number || ''}</span>
-    ${statusBadge(currentQuestion.status)}`;
+  document.getElementById('detail-meta').innerHTML =
+    '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> ' +
+    '<span class="cat-badge">' + (currentQuestion.category || '') + '</span> ' +
+    '<span class="qnum">' + (currentQuestion.question_number || '') + '</span> ' +
+    statusBadge(currentQuestion.status);
   document.getElementById('detail-q-text').textContent = currentQuestion.question_text;
   document.getElementById('detail-internal').value = currentQuestion.internal_notes || '';
   document.getElementById('detail-response').value = currentQuestion.client_response || '';
@@ -775,7 +806,10 @@ function openQuestion(qId) {
   document.getElementById('detail-overlay').classList.add('open');
 }
 
-function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); currentQuestion = null; }
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+  currentQuestion = null;
+}
 
 async function saveQuestion() {
   if (!currentQuestion) return;
@@ -809,12 +843,12 @@ async function publishQuestion() {
   await loadDealData();
 }
 
-// ── TABS ──
+// TABS
 function setDealTab(tab) {
-  ['tracker','buyers','add-q'].forEach(t => {
+  ['tracker','buyers','add-q'].forEach(function(t) {
     document.getElementById('deal-tab-content-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.getElementById('deal-tab-' + t);
-    if (btn) { btn.className = 'btn-sm ' + (t === tab ? 'btn-teal' : 'btn-ghost'); }
+    if (btn) btn.className = 'btn-sm ' + (t === tab ? 'btn-teal' : 'btn-ghost');
   });
 }
 
@@ -826,22 +860,22 @@ function setPortalView(v) {
   if (v === 'buyer') toast('Viewing as buyer — internal notes hidden');
 }
 
-// ── TOAST ──
+// TOAST
 let toastTimer;
-function toast(msg, type = '') {
+function toast(msg, type) {
+  type = type || '';
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = 'toast show' + (type ? ' ' + type : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
 }
 
-// ── BUYER PORTAL MODE ──
+// BUYER PORTAL
 function checkBuyerPortal() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('buyer');
   if (token) {
-    // Show a simplified buyer view
     document.getElementById('screen-auth').style.display = 'none';
     loadBuyerPortal(token);
     return true;
@@ -854,19 +888,21 @@ async function loadBuyerPortal(token) {
   appEl.style.display = 'flex';
   appEl.classList.add('active');
   const { data: buyer } = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
-  if (!buyer) { appEl.innerHTML = '<div style="padding:4rem;text-align:center;color:#888">Invalid or expired portal link.</div>'; return; }
+  if (!buyer) {
+    appEl.innerHTML = '<div style="padding:4rem;text-align:center;color:#888">Invalid or expired portal link.</div>';
+    return;
+  }
   currentDeal = buyer.deals;
   allBuyers = [buyer];
-  const { data: questions } = await db.from('questions').select('*').eq('deal_id', buyer.deal_id).eq('buyer_id', buyer.id).eq('status','published').order('created_at');
+  const { data: questions } = await db.from('questions').select('*').eq('deal_id', buyer.deal_id).eq('buyer_id', buyer.id).eq('status','published').order('created_at', { ascending: true });
   allQuestions = questions || [];
-  // Hide sidebar, show clean buyer view
   document.querySelector('.sidebar').style.display = 'none';
-  document.querySelector('.topbar').innerHTML = '<div style="font-size:1rem;font-weight:800;letter-spacing:-0.02em">Question<span style="color:var(--teal)">Pilot</span>  <span style="font-size:.75rem;font-weight:500;color:var(--ink-soft)">' + buyer.deals.name + ' — ' + buyer.name + '</span></div>';
+  document.querySelector('.topbar').innerHTML = '<div style="font-size:1rem;font-weight:800;letter-spacing:-0.02em">Question<span style="color:var(--teal)">Pilot</span> &nbsp;<span style="font-size:.75rem;font-weight:500;color:var(--ink-soft)">' + buyer.deals.name + ' \u2014 ' + buyer.name + '</span></div>';
   document.getElementById('btn-new-deal').style.display = 'none';
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
   document.getElementById('view-deal-detail').classList.add('active');
   document.getElementById('deal-detail-name').textContent = buyer.deals.name;
-  document.getElementById('deal-detail-meta').textContent = `Your diligence questions · ${questions.length} published`;
+  document.getElementById('deal-detail-meta').textContent = 'Your diligence questions \u00b7 ' + (questions ? questions.length : 0) + ' published';
   document.querySelector('.view-toggle').style.display = 'none';
   document.getElementById('deal-tab-buyers').style.display = 'none';
   document.getElementById('deal-tab-add-q').style.display = 'none';
@@ -875,11 +911,10 @@ async function loadBuyerPortal(token) {
   setDealTab('tracker');
   renderTrackerStats();
   renderQuestions();
-  // Hide internal columns for buyer
   document.getElementById('detail-advisor-sections').style.display = 'none';
 }
 
-// ── START ──
+// START
 if (!checkBuyerPortal()) { init(); }
 </script>
 </body>
