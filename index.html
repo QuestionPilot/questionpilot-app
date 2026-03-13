@@ -913,7 +913,8 @@ async function openQuestion(qId) {
 
 async function loadComments(questionId) {
   document.getElementById('comments-thread').innerHTML = '<div style="color:var(--ink-faint);font-size:.75rem;padding:.25rem 0">Loading notes...</div>';
-  var { data: comments } = await db.from('question_comments').select('*, profiles(full_name)').eq('question_id', questionId).order('created_at', { ascending: true });
+  var { data: comments, error: cErr } = await db.from('question_comments').select('*').eq('question_id', questionId).order('created_at', { ascending: true });
+  if (cErr) { console.error('Comments error:', cErr); }
   renderComments(comments || []);
 }
 
@@ -925,7 +926,7 @@ function renderComments(comments) {
     var d = new Date(c.created_at);
     var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    var author = (c.profiles && c.profiles.full_name) ? c.profiles.full_name : 'Advisor';
+    var author = c.author_name || 'Advisor';
     html += '<div class="comment-bubble">';
     html += '<div class="comment-meta">' + author + ' <span>' + dateStr + ' &middot; ' + timeStr + '</span></div>';
     html += '<div class="comment-text">' + c.comment_text.replace(/\n/g, '<br>') + '</div>';
@@ -1085,11 +1086,13 @@ document.getElementById('btn-add-comment').addEventListener('click', async funct
   if (!text || !currentQuestion) return;
   var btn = document.getElementById('btn-add-comment');
   btn.disabled = true; btn.textContent = 'Posting...';
+  var authorName = document.getElementById('user-name').textContent || 'Advisor';
   var { error } = await db.from('question_comments').insert({
     question_id: currentQuestion.id,
     deal_id: currentQuestion.deal_id,
     user_id: currentUser.id,
-    comment_text: text
+    comment_text: text,
+    author_name: authorName
   });
   btn.disabled = false; btn.textContent = 'Post Note';
   if (error) { toast('Error posting note: ' + error.message, 'error'); return; }
