@@ -205,7 +205,7 @@
         <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="login-email" placeholder="you@yourfirm.com"/></div>
         <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="login-pass" placeholder="Password"/></div>
         <button class="btn-primary" id="btn-login">Sign In</button>
-        <p class="auth-switch">No account? <a onclick="toggleAuth()">Create one free</a></p>
+        <p class="auth-switch">No account? <a href="#" onclick="event.preventDefault();toggleAuth()">Create one free</a></p>
       </div>
       <div id="auth-signup-view" style="display:none">
         <h2>Create account</h2>
@@ -216,7 +216,7 @@
         <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="signup-email" placeholder="you@yourfirm.com"/></div>
         <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="signup-pass" placeholder="Create a password"/></div>
         <button class="btn-primary" id="btn-signup">Create Account</button>
-        <p class="auth-switch">Already have an account? <a onclick="toggleAuth()">Sign in</a></p>
+        <p class="auth-switch">Already have an account? <a href="#" onclick="event.preventDefault();toggleAuth()">Sign in</a></p>
       </div>
     </div>
   </div>
@@ -493,9 +493,13 @@ function showApp() {
 function toggleAuth() {
   const l = document.getElementById('auth-login-view');
   const s = document.getElementById('auth-signup-view');
-  const showingLogin = s.style.display === 'none' || s.style.display === '';
-  l.style.display = showingLogin ? 'none' : 'block';
-  s.style.display = showingLogin ? 'block' : 'none';
+  if (l.style.display === 'none') {
+    l.style.display = 'block';
+    s.style.display = 'none';
+  } else {
+    l.style.display = 'none';
+    s.style.display = 'block';
+  }
 }
 
 document.getElementById('btn-login').addEventListener('click', async () => {
