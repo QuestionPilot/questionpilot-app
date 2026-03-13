@@ -282,8 +282,20 @@
     <div class="topbar">
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="topbar-actions">
+        <div style="position:relative;cursor:pointer" onclick="toggleNotifications()">
+          <span style="font-size:1.1rem">&#128276;</span>
+          <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:.55rem;font-weight:700;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center">0</span>
+        </div>
         <button class="btn-sm btn-teal" id="btn-new-deal" onclick="openNewDealModal()">+ New Deal</button>
       </div>
+    </div>
+    <!-- NOTIFICATIONS DROPDOWN -->
+    <div id="notif-dropdown" style="display:none;position:absolute;top:56px;right:1rem;width:320px;background:#fff;border:1px solid var(--rule-mid);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:400;overflow:hidden">
+      <div style="padding:.75rem 1rem;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:.82rem;font-weight:700;color:var(--ink)">Notifications</span>
+        <span style="font-size:.72rem;color:var(--teal);cursor:pointer;font-weight:600" onclick="markAllRead()">Mark all read</span>
+      </div>
+      <div id="notif-list" style="max-height:320px;overflow-y:auto"></div>
     </div>
     <div class="content">
 
@@ -364,7 +376,7 @@
             <h4>Add a Buyer</h4>
             <div class="inline-form">
               <input class="form-input" type="text" id="new-buyer-name" placeholder="Buyer / Firm Name"/>
-              <input class="form-input" type="email" id="new-buyer-email" placeholder="contact@buyerfirm.com"/>
+              <input class="form-input" type="email" id="new-buyer-email" placeholder="contact@buyerfirm.com (optional)"/>
               <button class="btn-add" onclick="addBuyer()">Add Buyer</button>
             </div>
           </div>
@@ -382,10 +394,22 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
               <div class="form-group">
                 <label class="form-label">Category</label>
-                <select class="form-input" id="new-q-cat">
-                  <option>Financial</option><option>Legal</option><option>Operations</option>
-                  <option>HR</option><option>Tax</option><option>IT</option><option>Commercial</option><option>Other</option>
+                <select class="form-input" id="new-q-cat" onchange="handleCategoryChange(this)">
+                  <option value="Financial">Financial</option>
+                  <option value="Legal">Legal</option>
+                  <option value="Operations">Operations</option>
+                  <option value="HR">HR</option>
+                  <option value="Tax">Tax</option>
+                  <option value="IT">IT</option>
+                  <option value="Commercial">Commercial</option>
+                  <option value="Other">Other</option>
+                  <option value="__new__">+ Create new category...</option>
                 </select>
+                <input class="form-input" id="new-cat-input" placeholder="Category name..." style="display:none;margin-top:.5rem" onkeydown="if(event.key==='Enter'){saveNewCategory()}"/>
+                <div style="display:none;margin-top:.35rem;gap:.5rem" id="new-cat-actions">
+                  <button class="btn-sm btn-teal" onclick="saveNewCategory()" style="font-size:.75rem;padding:.3rem .75rem">Save</button>
+                  <button class="btn-sm btn-ghost" onclick="cancelNewCategory()" style="font-size:.75rem;padding:.3rem .75rem;border:1px solid var(--rule-mid)">Cancel</button>
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Question Number</label>
@@ -434,36 +458,35 @@
       <button class="detail-close" onclick="closeDetail()">&#x2715;</button>
     </div>
     <div class="detail-body">
+      <!-- INTERNAL NOTES THREAD (advisor only) -->
       <div class="detail-sec" id="detail-advisor-sections">
         <h4>Internal Notes <span style="font-size:.65rem;color:var(--ink-faint);font-weight:400;text-transform:none;letter-spacing:0">(never visible to buyer)</span></h4>
-        <div id="comments-thread" style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:.75rem"></div>
-        <div style="display:flex;gap:.5rem;align-items:flex-start">
-          <textarea class="detail-ta internal" id="detail-internal" placeholder="Add an internal note..." rows="2" style="min-height:60px"></textarea>
-        </div>
+        <div id="internal-thread" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.75rem;max-height:220px;overflow-y:auto"></div>
+        <textarea class="detail-ta internal" id="detail-internal" placeholder="Add an internal note..." rows="2" style="min-height:60px"></textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.4rem">
           <div class="internal-tag">&#128274; Internal only</div>
           <button class="btn-save" id="btn-add-comment" style="padding:.35rem .85rem;font-size:.75rem">Post Note</button>
         </div>
       </div>
+      <!-- EXTERNAL THREAD (buyer-facing) -->
       <div class="detail-sec">
-        <h4 id="detail-response-label">Client Response Draft</h4>
-        <textarea class="detail-ta" id="detail-response" placeholder="Draft the response here..."></textarea>
-      </div>
-      <div class="detail-sec" id="detail-published-sec" style="display:none">
-        <h4>Published Response <span style="font-size:.65rem;color:#065f46;font-weight:400;text-transform:none;letter-spacing:0">(visible to buyer)</span></h4>
-        <textarea class="detail-ta" id="detail-published" placeholder="Published response..."></textarea>
-        <div id="detail-published-stamp" style="font-size:.7rem;color:#8fa5a3;margin-top:.35rem"></div>
+        <h4>Response Thread <span style="font-size:.65rem;color:#065f46;font-weight:400;text-transform:none;letter-spacing:0">(visible to buyer)</span></h4>
+        <div id="external-thread" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.75rem;max-height:260px;overflow-y:auto"></div>
+        <textarea class="detail-ta" id="detail-response" placeholder="Post a response to the buyer..." rows="2" style="min-height:60px"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:.4rem">
+          <button class="btn-pub" id="btn-post-response" style="padding:.35rem .85rem;font-size:.75rem">Post Response</button>
+        </div>
       </div>
     </div>
     <div class="detail-footer">
-      <select class="status-sel" id="detail-status">
+      <select class="status-sel" id="detail-status" onchange="saveStatus()">
         <option value="open">Open</option>
         <option value="in_review">In Review</option>
         <option value="draft">Draft</option>
         <option value="published">Published</option>
       </select>
-      <button class="btn-save" onclick="saveQuestion()">Save</button>
-      <button class="btn-pub" onclick="publishQuestion()">Publish</button>
+      <button class="btn-save" onclick="saveQuestion()">Save Details</button>
+      <button class="btn-ghost btn-sm" onclick="deleteQuestion()" style="background:transparent;border:1px solid #fecaca;color:#dc2626;padding:.55rem 1rem;border-radius:6px;font-family:inherit;font-weight:600;font-size:.8rem;cursor:pointer">Delete</button>
     </div>
   </div>
 </div>
@@ -480,661 +503,107 @@ const db = createClient(SUPA_URL, SUPA_KEY);
 let currentUser = null;
 let currentFirmId = null;
 let currentDeal = null;
+let currentUserName = 'Advisor';
 let allQuestions = [];
 let allBuyers = [];
+let dealCategories = [];
 let currentQuestion = null;
-let currentUserName = 'Advisor';
 let portalView = 'advisor';
+let portalBuyer = null;
 
-// INIT
+// ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    await loadUserProfile();
-    showApp();
+  var hashParams = new URLSearchParams(window.location.hash.replace('#','?'));
+  var urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('reset') === 'true' || hashParams.get('type') === 'recovery') {
+    document.getElementById('screen-auth').classList.add('active');
+    showResetView();
+    return;
   }
-  db.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      currentUser = session.user;
-      await loadUserProfile();
-      showApp();
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      currentFirmId = null;
-      showAuth();
-    }
+  var { data: { session } } = await db.auth.getSession();
+  if (session) { currentUser = session.user; await loadUserProfile(); showApp(); }
+  db.auth.onAuthStateChange(async function(event, session) {
+    if (event === 'SIGNED_IN' && session) { currentUser = session.user; await loadUserProfile(); showApp(); }
+    else if (event === 'SIGNED_OUT') { currentUser = null; currentFirmId = null; showAuth(); }
   });
 }
 
 async function loadUserProfile() {
-  const { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  var { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
   if (data) {
     currentFirmId = data.firm_id;
     currentUserName = data.full_name || currentUser.email;
-    const initials = currentUserName.substring(0,2).toUpperCase();
+    var initials = currentUserName.substring(0,2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
     document.getElementById('user-name').textContent = currentUserName;
     document.getElementById('user-email-display').textContent = currentUser.email;
   }
 }
 
-// AUTH
-function showAuth() {
-  document.getElementById('screen-auth').classList.add('active');
-  document.getElementById('screen-app').classList.remove('active');
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+function showAuth() { document.getElementById('screen-auth').classList.add('active'); document.getElementById('screen-app').classList.remove('active'); }
+function showApp() { document.getElementById('screen-auth').classList.remove('active'); document.getElementById('screen-app').classList.add('active'); loadDashboard(); loadNotifications(); }
+
+function showAllHidden() {
+  ['auth-login-view','auth-signup-view','auth-confirm-view','auth-forgot-view','auth-reset-view'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
 }
-function showApp() {
-  document.getElementById('screen-auth').classList.remove('active');
-  document.getElementById('screen-app').classList.add('active');
-  loadDashboard();
-}
+function showLogin() { showAllHidden(); document.getElementById('auth-login-view').style.display = 'block'; }
+function showResetView() { showAllHidden(); document.getElementById('auth-reset-view').style.display = 'block'; }
+function showForgot() { showAllHidden(); document.getElementById('auth-forgot-view').style.display = 'block'; }
 function toggleAuth() {
-  const l = document.getElementById('auth-login-view');
-  const s = document.getElementById('auth-signup-view');
-  if (l.style.display === 'none') {
-    l.style.display = 'block';
-    s.style.display = 'none';
-  } else {
-    l.style.display = 'none';
-    s.style.display = 'block';
-  }
+  var l = document.getElementById('auth-login-view');
+  if (l.style.display === 'none') { showLogin(); } else { showAllHidden(); document.getElementById('auth-signup-view').style.display = 'block'; }
 }
 
 document.getElementById('btn-login').addEventListener('click', async function() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  const errEl = document.getElementById('login-error');
+  var email = document.getElementById('login-email').value.trim();
+  var pass = document.getElementById('login-pass').value;
+  var errEl = document.getElementById('login-error');
   errEl.classList.remove('show');
-  const btn = document.getElementById('btn-login');
-  btn.disabled = true;
-  btn.textContent = 'Signing in...';
-  const { error } = await db.auth.signInWithPassword({ email: email, password: pass });
-  if (error) {
-    errEl.textContent = error.message;
-    errEl.classList.add('show');
-  }
-  btn.disabled = false;
-  btn.textContent = 'Sign In';
+  var btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  var { error } = await db.auth.signInWithPassword({ email: email, password: pass });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); }
+  btn.disabled = false; btn.textContent = 'Sign In';
 });
 
 document.getElementById('btn-signup').addEventListener('click', async function() {
-  const name = document.getElementById('signup-name').value.trim();
-  const firmName = document.getElementById('signup-firm').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const pass = document.getElementById('signup-pass').value;
-  const errEl = document.getElementById('signup-error');
+  var name = document.getElementById('signup-name').value.trim();
+  var firmName = document.getElementById('signup-firm').value.trim();
+  var email = document.getElementById('signup-email').value.trim();
+  var pass = document.getElementById('signup-pass').value;
+  var errEl = document.getElementById('signup-error');
   errEl.classList.remove('show');
-  if (!name || !email || !pass) {
-    errEl.textContent = 'Please fill in all fields.';
-    errEl.classList.add('show');
-    return;
-  }
-  const btn = document.getElementById('btn-signup');
-  btn.disabled = true;
-  btn.textContent = 'Creating account...';
-  const { data, error } = await db.auth.signUp({
-    email: email,
-    password: pass,
-    options: { data: { full_name: name, firm_name: firmName } }
-  });
-  if (error) {
-    errEl.textContent = error.message;
-    errEl.classList.add('show');
-    btn.disabled = false;
-    btn.textContent = 'Create Account';
-    return;
-  }
+  if (!name || !email || !pass) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; }
+  var btn = document.getElementById('btn-signup');
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  var { data, error } = await db.auth.signUp({ email: email, password: pass, options: { data: { full_name: name, firm_name: firmName } } });
+  if (error) { errEl.textContent = error.message; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
   if (data.user) {
-    const { data: firm } = await db.from('firms').insert({ name: firmName || 'My Firm' }).select().single();
-    if (firm) {
-      await db.from('profiles').insert({ id: data.user.id, firm_id: firm.id, full_name: name, email: email });
-    }
-    if (data.session) {
-      // Email confirmation disabled - go straight in
-      currentUser = data.user;
-      await loadUserProfile();
-      showApp();
-    } else {
-      // Show confirmation screen
-      document.getElementById('confirm-email-display').textContent = email;
-      document.getElementById('auth-login-view').style.display = 'none';
-      document.getElementById('auth-signup-view').style.display = 'none';
-      document.getElementById('auth-confirm-view').style.display = 'block';
-    }
+    var { data: firm } = await db.from('firms').insert({ name: firmName || 'My Firm' }).select().single();
+    if (firm) { await db.from('profiles').insert({ id: data.user.id, firm_id: firm.id, full_name: name, email: email }); }
+    if (data.session) { currentUser = data.user; await loadUserProfile(); showApp(); }
+    else { document.getElementById('confirm-email-display').textContent = email; showAllHidden(); document.getElementById('auth-confirm-view').style.display = 'block'; }
   }
-  btn.disabled = false;
-  btn.textContent = 'Create Account';
+  btn.disabled = false; btn.textContent = 'Create Account';
 });
 
-async function handleSignOut() {
-  await db.auth.signOut();
-  toast('Signed out.');
-}
-
-// VIEWS
-function showView(name) {
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-' + name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-  const navEl = document.getElementById('nav-' + name);
-  if (navEl) navEl.classList.add('active');
-  const titles = { dashboard: 'Dashboard', deals: 'All Deals' };
-  if (titles[name]) document.getElementById('topbar-title').textContent = titles[name];
-  if (name === 'deals') loadAllDeals();
-  if (name === 'dashboard') loadDashboard();
-}
-
-// DASHBOARD
-async function loadDashboard() {
-  if (!currentFirmId) return;
-  const { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).eq('status', 'active');
-  const { data: buyers } = await db.from('buyers').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId);
-  const { data: openQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'open');
-  const { data: pubQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status', 'published');
-  document.getElementById('stat-deals').textContent = (deals || []).length;
-  document.getElementById('stat-buyers').textContent = (buyers || []).length;
-  document.getElementById('stat-open').textContent = (openQ || []).length;
-  document.getElementById('stat-pub').textContent = (pubQ || []).length;
-  renderDealCards('dashboard-deals', deals || []);
-}
-
-function renderDealCards(containerId, deals) {
-  const el = document.getElementById(containerId);
-  if (!deals.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128193;</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
-    return;
-  }
-  let html = '<div class="deals-grid">';
-  deals.forEach(function(d) {
-    html += '<div class="deal-card" data-id="' + d.id + '" data-name="' + d.name.replace(/"/g, '&quot;') + '" onclick="openDealFromCard(this)">';
-    html += '<div class="deal-card-top"><div><div class="deal-name">' + d.name + '</div>';
-    html += '<div class="deal-date">' + new Date(d.created_at).toLocaleDateString() + '</div></div>';
-    html += '<span class="deal-badge">Active</span></div>';
-    html += '<div class="deal-stats"><span class="deal-stat"><strong id="dsb-' + d.id + '">-</strong> buyers</span>';
-    html += '<span class="deal-stat"><strong id="dsq-' + d.id + '">-</strong> questions</span></div></div>';
-  });
-  html += '</div>';
-  el.innerHTML = html;
-  deals.forEach(async function(d) {
-    const { count: bc } = await db.from('buyers').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
-    const { count: qc } = await db.from('questions').select('*', { count: 'exact', head: true }).eq('deal_id', d.id);
-    const bEl = document.getElementById('dsb-' + d.id);
-    const qEl = document.getElementById('dsq-' + d.id);
-    if (bEl) bEl.textContent = bc || 0;
-    if (qEl) qEl.textContent = qc || 0;
-  });
-}
-
-function openDealFromCard(el) {
-  openDeal(el.dataset.id, el.dataset.name);
-}
-
-async function loadAllDeals() {
-  if (!currentFirmId) return;
-  const { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).order('created_at', { ascending: false });
-  renderDealCards('all-deals-list', deals || []);
-}
-
-// NEW DEAL
-function openNewDealModal() {
-  document.getElementById('modal-new-deal').classList.add('open');
-  document.getElementById('new-deal-name').focus();
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-async function createDeal() {
-  const name = document.getElementById('new-deal-name').value.trim();
-  if (!name) { toast('Please enter a deal name.', 'error'); return; }
-  const btn = document.getElementById('btn-create-deal');
-  btn.disabled = true;
-  btn.textContent = 'Creating...';
-  const { data, error } = await db.from('deals').insert({ name: name, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
-  btn.disabled = false;
-  btn.textContent = 'Create Deal';
-  if (error) { toast('Error: ' + error.message, 'error'); return; }
-  closeModal('modal-new-deal');
-  document.getElementById('new-deal-name').value = '';
-  toast('Deal created!', 'success');
-  openDeal(data.id, data.name);
-}
-
-// DEAL DETAIL
-async function openDeal(dealId, dealName) {
-  currentDeal = { id: dealId, name: dealName };
-  document.getElementById('deal-detail-name').textContent = currentDeal.name;
-  document.getElementById('topbar-title').textContent = currentDeal.name;
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-deal-detail').classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-  setDealTab('tracker');
-  await loadDealData();
-}
-
-async function loadDealData() {
-  const { data: buyers } = await db.from('buyers').select('*').eq('deal_id', currentDeal.id);
-  allBuyers = buyers || [];
-  const { data: questions } = await db.from('questions').select('*').eq('deal_id', currentDeal.id).order('created_at', { ascending: true });
-  allQuestions = questions || [];
-  document.getElementById('deal-detail-meta').textContent = allBuyers.length + ' buyer' + (allBuyers.length !== 1 ? 's' : '') + ' \u00b7 ' + allQuestions.length + ' questions';
-  renderTrackerStats();
-  renderQuestions();
-  renderBuyers();
-  populateBuyerDropdowns();
-}
-
-function renderTrackerStats() {
-  const counts = { open: 0, in_review: 0, draft: 0, published: 0 };
-  allQuestions.forEach(function(q) { if (counts[q.status] !== undefined) counts[q.status]++; });
-  document.getElementById('tracker-stats').innerHTML =
-    '<div class="tstat"><div class="tstat-dot" style="background:#dbeafe;border:1.5px solid #3b82f6"></div><strong>' + counts.open + '</strong>&nbsp;Open</div>' +
-    '<div class="tstat"><div class="tstat-dot" style="background:#fef3c7;border:1.5px solid #f59e0b"></div><strong>' + counts.in_review + '</strong>&nbsp;In Review</div>' +
-    '<div class="tstat"><div class="tstat-dot" style="background:#f3f4f6;border:1.5px solid #9ca3af"></div><strong>' + counts.draft + '</strong>&nbsp;Draft</div>' +
-    '<div class="tstat"><div class="tstat-dot" style="background:#d1fae5;border:1.5px solid #10b981"></div><strong>' + counts.published + '</strong>&nbsp;Published</div>';
-}
-
-const cpColors = ['cp-0','cp-1','cp-2','cp-3','cp-4'];
-function buyerColor(buyerId) {
-  const idx = allBuyers.findIndex(function(b) { return b.id === buyerId; });
-  return cpColors[Math.max(0,idx) % cpColors.length];
-}
-function buyerName(buyerId) {
-  const b = allBuyers.find(function(b) { return b.id === buyerId; });
-  return b ? b.name : 'Unknown';
-}
-function statusBadge(s) {
-  const map = { open: 'sp-open', in_review: 'sp-review', draft: 'sp-draft', published: 'sp-pub' };
-  const labels = { open: 'Open', in_review: 'In Review', draft: 'Draft', published: 'Published' };
-  return '<span class="sp ' + (map[s] || 'sp-open') + '">' + (labels[s] || s) + '</span>';
-}
-
-function renderQuestions() {
-  var search = (document.getElementById('q-search').value || '').toLowerCase();
-  var statusF = document.getElementById('q-filter-status').value;
-  var buyerF = document.getElementById('q-filter-buyer').value;
-  var qs = allQuestions.slice();
-  if (search) qs = qs.filter(function(q) { return q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search) || (q.question_number||'').toLowerCase().includes(search); });
-  if (statusF) qs = qs.filter(function(q) { return q.status === statusF; });
-  if (buyerF) qs = qs.filter(function(q) { return q.buyer_id === buyerF; });
-  if (portalView === 'buyer') qs = qs.filter(function(q) { return q.status === 'published'; });
-  var tbody = document.getElementById('questions-tbody');
-  if (!qs.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>'; return; }
-  if (!window.collapsedCategories) window.collapsedCategories = {};
-  var groups = {};
-  var groupOrder = [];
-  qs.forEach(function(q) {
-    var cat = q.category || 'Uncategorized';
-    if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
-    groups[cat].push(q);
-  });
-  var html = '';
-  groupOrder.forEach(function(cat) {
-    var catQs = groups[cat];
-    var isCollapsed = window.collapsedCategories[cat] === true;
-    var openCount = catQs.filter(function(q) { return q.status === 'open'; }).length;
-    var pubCount = catQs.filter(function(q) { return q.status === 'published'; }).length;
-    var catId = cat.replace(/[^a-z0-9]/gi, '-');
-    html += '<tr class="cat-group-row" data-cat="' + catId + '" style="cursor:pointer;background:#f8faf9;user-select:none">';
-    html += '<td colspan="6" style="padding:.6rem 1rem">';
-    html += '<div style="display:flex;align-items:center;gap:.75rem">';
-    html += '<span style="font-size:.7rem;color:#8fa5a3;display:inline-block;transform:' + (isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)') + '">&#9660;</span>';
-    html += '<span style="font-size:.78rem;font-weight:700;color:#141f1e">' + cat + '</span>';
-    html += '<span style="font-size:.68rem;color:#8fa5a3">' + catQs.length + ' question' + (catQs.length !== 1 ? 's' : '') + '</span>';
-    if (openCount > 0) html += '<span style="font-size:.62rem;font-weight:700;background:#dbeafe;color:#1e40af;padding:.12rem .4rem;border-radius:100px">' + openCount + ' open</span>';
-    if (pubCount > 0) html += '<span style="font-size:.62rem;font-weight:700;background:#d1fae5;color:#065f46;padding:.12rem .4rem;border-radius:100px">' + pubCount + ' published</span>';
-    html += '</div></td></tr>';
-    if (!isCollapsed) {
-      catQs.forEach(function(q) {
-        html += '<tr data-qid="' + q.id + '" style="transition:background .1s">';
-        html += '<td style="padding-left:2.5rem"><span class="cp ' + buyerColor(q.buyer_id) + '">' + buyerName(q.buyer_id) + '</span></td>';
-        html += '<td><span class="cat-badge">' + (q.category || '') + '</span></td>';
-        html += '<td><span class="qnum">' + (q.question_number || '') + '</span></td>';
-        html += '<td style="max-width:320px">' + q.question_text + '</td>';
-        html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (q.vdr_reference || '') + '</td>';
-        html += '<td>' + statusBadge(q.status) + '</td></tr>';
-      });
-    }
-  });
-  tbody.innerHTML = html;
-  // Attach click handlers to category rows
-  tbody.querySelectorAll('.cat-group-row').forEach(function(row) {
-    row.addEventListener('click', function() {
-      var catId = row.dataset.cat;
-      // Find original cat name from groupOrder
-      var cat = groupOrder.find(function(c) { return c.replace(/[^a-z0-9]/gi, '-') === catId; });
-      if (cat) {
-        if (!window.collapsedCategories) window.collapsedCategories = {};
-        window.collapsedCategories[cat] = !window.collapsedCategories[cat];
-        renderQuestions();
-      }
-    });
-  });
-  // Attach click handlers to question rows
-  tbody.querySelectorAll('tr[data-qid]').forEach(function(row) {
-    row.addEventListener('click', function() { openQuestion(row.dataset.qid); });
-  });
-}
-
-
-function toggleCategory(cat) {
-  if (!window.collapsedCategories) window.collapsedCategories = {};
-  window.collapsedCategories[cat] = !window.collapsedCategories[cat];
-  renderQuestions();
-}
-
-
-function filterQuestions() { renderQuestions(); }
-
-function renderBuyers() {
-  const el = document.getElementById('buyers-list');
-  if (!allBuyers.length) {
-    el.innerHTML = '<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>';
-    return;
-  }
-  let html = '';
-  allBuyers.forEach(function(b) {
-    html += '<div class="buyer-row"><div><div class="buyer-name">' + b.name + '</div>';
-    html += '<div class="buyer-email">' + (b.email || 'No email set') + '</div></div>';
-    html += '<a class="buyer-link" href="#" data-token="' + b.access_token + '" onclick="event.preventDefault();copyBuyerLink(this.dataset.token)">Copy Portal Link</a></div>';
-  });
-  el.innerHTML = html;
-}
-
-function copyBuyerLink(token) {
-  const link = window.location.origin + window.location.pathname + '?buyer=' + token;
-  navigator.clipboard.writeText(link).then(function() { toast('Portal link copied!', 'success'); });
-}
-
-function populateBuyerDropdowns() {
-  const sel = document.getElementById('new-q-buyer');
-  const fSel = document.getElementById('q-filter-buyer');
-  let opts = '';
-  allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
-  sel.innerHTML = opts;
-  fSel.innerHTML = '<option value="">All Buyers</option>' + opts;
-}
-
-async function addBuyer() {
-  const name = document.getElementById('new-buyer-name').value.trim();
-  const email = document.getElementById('new-buyer-email').value.trim();
-  if (!name) { toast('Buyer name required.', 'error'); return; }
-  const { error } = await db.from('buyers').insert({ deal_id: currentDeal.id, name: name, email: email });
-  if (error) { toast('Error: ' + error.message, 'error'); return; }
-  document.getElementById('new-buyer-name').value = '';
-  document.getElementById('new-buyer-email').value = '';
-  toast('Buyer added!', 'success');
-  await loadDealData();
-}
-
-async function addQuestion() {
-  const buyer_id = document.getElementById('new-q-buyer').value;
-  const category = document.getElementById('new-q-cat').value;
-  const question_number = document.getElementById('new-q-num').value.trim();
-  const question_text = document.getElementById('new-q-text').value.trim();
-  const vdr_reference = document.getElementById('new-q-vdr').value.trim();
-  if (!question_text) { toast('Question text required.', 'error'); return; }
-  if (!buyer_id) { toast('Please add a buyer first.', 'error'); return; }
-  const { error } = await db.from('questions').insert({ deal_id: currentDeal.id, buyer_id: buyer_id, category: category, question_number: question_number, question_text: question_text, vdr_reference: vdr_reference, status: 'open' });
-  if (error) { toast('Error: ' + error.message, 'error'); return; }
-  document.getElementById('new-q-text').value = '';
-  document.getElementById('new-q-num').value = '';
-  document.getElementById('new-q-vdr').value = '';
-  toast('Question added!', 'success');
-  setDealTab('tracker');
-  await loadDealData();
-}
-
-// QUESTION DETAIL
-async function openQuestion(qId) {
-  currentQuestion = allQuestions.find(function(q) { return q.id === qId; });
-  if (!currentQuestion) return;
-  var isAdvisor = portalView === 'advisor';
-  document.getElementById('detail-meta').innerHTML =
-    '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> ' +
-    '<span class="cat-badge">' + (currentQuestion.category || '') + '</span> ' +
-    '<span class="qnum">' + (currentQuestion.question_number || '') + '</span> ' +
-    statusBadge(currentQuestion.status);
-  document.getElementById('detail-q-text').textContent = currentQuestion.question_text;
-  document.getElementById('detail-internal').value = '';
-  document.getElementById('detail-response').value = currentQuestion.client_response || '';
-  document.getElementById('detail-published').value = currentQuestion.published_response || '';
-  document.getElementById('detail-status').value = currentQuestion.status;
-  document.getElementById('detail-advisor-sections').style.display = isAdvisor ? 'block' : 'none';
-  document.getElementById('detail-response-label').textContent = isAdvisor ? 'Response Draft' : 'Response';
-  var pubSec = document.getElementById('detail-published-sec');
-  pubSec.style.display = currentQuestion.status === 'published' ? 'block' : 'none';
-  if (currentQuestion.status === 'published' && currentQuestion.updated_at) {
-    var pubDate = new Date(currentQuestion.updated_at);
-    document.getElementById('detail-published-stamp').textContent = 'Published ' + pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-  document.getElementById('detail-overlay').classList.add('open');
-  if (isAdvisor) await loadComments(qId);
-}
-
-async function loadComments(questionId) {
-  document.getElementById('comments-thread').innerHTML = '<div style="color:var(--ink-faint);font-size:.75rem;padding:.25rem 0">Loading notes...</div>';
-  var { data: comments, error: cErr } = await db.from('question_comments').select('*').eq('question_id', questionId).order('created_at', { ascending: true });
-  if (cErr) { console.error('Comments error:', cErr); }
-  renderComments(comments || []);
-}
-
-function renderComments(comments) {
-  var thread = document.getElementById('comments-thread');
-  if (!comments.length) { thread.innerHTML = '<div style="color:var(--ink-faint);font-size:.75rem;font-style:italic;padding:.25rem 0">No notes yet.</div>'; return; }
-  var html = '';
-  comments.forEach(function(c) {
-    var d = new Date(c.created_at);
-    var dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    var author = c.author_name || 'Advisor';
-    html += '<div class="comment-bubble">';
-    html += '<div class="comment-meta">' + author + ' <span>' + dateStr + ' &middot; ' + timeStr + '</span></div>';
-    html += '<div class="comment-text">' + c.comment_text.replace(/\n/g, '<br>') + '</div>';
-    html += '</div>';
-  });
-  thread.innerHTML = html;
-}
-
-function closeDetail() {
-  document.getElementById('detail-overlay').classList.remove('open');
-  currentQuestion = null;
-}
-
-async function saveQuestion() {
-  if (!currentQuestion) return;
-  const updates = {
-    internal_notes: document.getElementById('detail-internal').value,
-    client_response: document.getElementById('detail-response').value,
-    status: document.getElementById('detail-status').value,
-    updated_at: new Date().toISOString()
-  };
-  const { error } = await db.from('questions').update(updates).eq('id', currentQuestion.id);
-  if (error) { toast('Error saving.', 'error'); return; }
-  toast('Saved!', 'success');
-  closeDetail();
-  await loadDealData();
-}
-
-async function publishQuestion() {
-  if (!currentQuestion) return;
-  const response = document.getElementById('detail-response').value.trim();
-  if (!response) { toast('Add a response before publishing.', 'error'); return; }
-  const { error } = await db.from('questions').update({
-    status: 'published',
-    published_response: response,
-    client_response: response,
-    internal_notes: document.getElementById('detail-internal').value,
-    updated_at: new Date().toISOString()
-  }).eq('id', currentQuestion.id);
-  if (error) { toast('Error publishing.', 'error'); return; }
-  toast('Published to buyer!', 'success');
-  closeDetail();
-  await loadDealData();
-}
-
-// TABS
-function setDealTab(tab) {
-  ['tracker','buyers','add-q'].forEach(function(t) {
-    document.getElementById('deal-tab-content-' + t).style.display = t === tab ? 'block' : 'none';
-    const btn = document.getElementById('deal-tab-' + t);
-    if (btn) btn.className = 'btn-sm ' + (t === tab ? 'btn-teal' : 'btn-ghost');
-  });
-}
-
-function setPortalView(v) {
-  portalView = v;
-  document.getElementById('toggle-advisor').className = 'toggle-btn' + (v === 'advisor' ? ' active' : '');
-  document.getElementById('toggle-buyer').className = 'toggle-btn' + (v === 'buyer' ? ' active' : '');
-  renderQuestions();
-  if (v === 'buyer') toast('Viewing as buyer — internal notes hidden');
-}
-
-// TOAST
-let toastTimer;
-function toast(msg, type) {
-  type = type || '';
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
-}
-
-// BUYER PORTAL
-function checkBuyerPortal() {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('buyer');
-  if (token) {
-    document.getElementById('screen-auth').style.display = 'none';
-    loadBuyerPortal(token);
-    return true;
-  }
-  return false;
-}
-
-async function loadBuyerPortal(token) {
-  document.getElementById('screen-auth').style.display = 'none';
-  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading your portal...</div>';
-
-  const { data: buyer, error } = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
-  if (error || !buyer) {
-    document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>';
-    return;
-  }
-
-  const { data: questions } = await db.from('questions').select('*').eq('deal_id', buyer.deal_id).eq('buyer_id', buyer.id).eq('status','published').order('created_at', { ascending: true });
-  const qs = questions || [];
-
-  let rows = '';
-  if (!qs.length) {
-    rows = '<tr><td colspan="5" style="text-align:center;padding:3rem;color:#8fa5a3;font-size:.85rem">No published responses yet. Check back soon.</td></tr>';
-  } else {
-    qs.forEach(function(q) {
-      rows += '<tr style="border-bottom:1px solid rgba(0,0,0,.07)">';
-      rows += '<td style="padding:.85rem 1rem"><span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">' + (q.category||'') + '</span></td>';
-      rows += '<td style="padding:.85rem 1rem;font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">' + (q.question_number||'') + '</td>';
-      rows += '<td style="padding:.85rem 1rem;font-size:.82rem;color:#374140;max-width:280px">' + q.question_text + '</td>';
-      rows += '<td style="padding:.85rem 1rem;font-size:.7rem;color:#8fa5a3;font-family:monospace">' + (q.vdr_reference||'') + '</td>';
-      rows += '<td style="padding:.85rem 1rem;font-size:.82rem;color:#141f1e;max-width:320px">' + (q.published_response||'<span style="color:#8fa5a3;font-style:italic">Pending</span>') + '</td>';
-      rows += '</tr>';
-    });
-  }
-
-  document.body.innerHTML =
-    '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif">' +
-    '<div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between">' +
-    '<div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div>' +
-    '<div style="font-size:.78rem;color:rgba(255,255,255,.55)">' + buyer.deals.name + ' — ' + buyer.name + '</div>' +
-    '</div>' +
-    '<div style="max-width:1000px;margin:0 auto;padding:2rem 1.5rem">' +
-    '<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">' + buyer.deals.name + '</h1>' +
-    '<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">Due Diligence Questions · ' + buyer.name + ' · ' + qs.length + ' published response' + (qs.length !== 1 ? 's' : '') + '</p>' +
-    '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;overflow:hidden">' +
-    '<table style="width:100%;border-collapse:collapse">' +
-    '<thead><tr style="background:#f2f4f3">' +
-    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Category</th>' +
-    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Q #</th>' +
-    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Question</th>' +
-    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">VDR Ref.</th>' +
-    '<th style="text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;padding:.75rem 1rem;border-bottom:1px solid rgba(0,0,0,.07)">Response</th>' +
-    '</tr></thead>' +
-    '<tbody>' + rows + '</tbody>' +
-    '</table></div></div></div>';
-}
-
-function showConfirmBack() {
-  document.getElementById('auth-confirm-view').style.display = 'none';
-  document.getElementById('auth-login-view').style.display = 'block';
-  document.getElementById('auth-signup-view').style.display = 'none';
-}
-
-// TOGGLE PASSWORD
-function togglePw(fieldId, btn) {
-  const input = document.getElementById(fieldId);
-  if (input.type === 'password') {
-    input.type = 'text';
-    btn.textContent = 'Hide';
-  } else {
-    input.type = 'password';
-    btn.textContent = 'Show';
-  }
-}
-
-// COMMENT THREAD
-document.getElementById('btn-add-comment').addEventListener('click', async function() {
-  var text = document.getElementById('detail-internal').value.trim();
-  if (!text || !currentQuestion) return;
-  var btn = document.getElementById('btn-add-comment');
-  btn.disabled = true; btn.textContent = 'Posting...';
-  var authorName = currentUserName || 'Advisor';
-  var { error } = await db.from('question_comments').insert({
-    question_id: currentQuestion.id,
-    deal_id: currentQuestion.deal_id,
-    user_id: currentUser.id,
-    comment_text: text,
-    author_name: authorName
-  });
-  btn.disabled = false; btn.textContent = 'Post Note';
-  if (error) { toast('Error posting note: ' + error.message, 'error'); return; }
-  document.getElementById('detail-internal').value = '';
-  await loadComments(currentQuestion.id);
-});
-
-// PASSWORD RESET FLOWS
-function showForgot() {
-  document.getElementById('auth-login-view').style.display = 'none';
-  document.getElementById('auth-signup-view').style.display = 'none';
-  document.getElementById('auth-confirm-view').style.display = 'none';
-  document.getElementById('auth-forgot-view').style.display = 'block';
-  document.getElementById('auth-reset-view').style.display = 'none';
-}
-
-function showLogin() {
-  document.getElementById('auth-login-view').style.display = 'block';
-  document.getElementById('auth-signup-view').style.display = 'none';
-  document.getElementById('auth-confirm-view').style.display = 'none';
-  document.getElementById('auth-forgot-view').style.display = 'none';
-  document.getElementById('auth-reset-view').style.display = 'none';
-}
+async function handleSignOut() { await db.auth.signOut(); toast('Signed out.'); }
 
 document.getElementById('btn-forgot').addEventListener('click', async function() {
   var email = document.getElementById('forgot-email').value.trim();
   var errEl = document.getElementById('forgot-error');
   var sucEl = document.getElementById('forgot-success');
-  errEl.classList.remove('show');
-  sucEl.style.display = 'none';
+  errEl.classList.remove('show'); sucEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Please enter your email.'; errEl.classList.add('show'); return; }
   var btn = document.getElementById('btn-forgot');
   btn.disabled = true; btn.textContent = 'Sending...';
-  var { error } = await db.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://app.questionpilot.com/?reset=true'
-  });
+  var { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: 'https://app.questionpilot.com/?reset=true' });
   btn.disabled = false; btn.textContent = 'Send Reset Link';
   if (error) { errEl.textContent = error.message; errEl.classList.add('show'); return; }
-  sucEl.textContent = 'Reset link sent! Check your email.';
-  sucEl.style.display = 'block';
+  sucEl.textContent = 'Reset link sent! Check your email.'; sucEl.style.display = 'block';
   document.getElementById('forgot-email').value = '';
 });
 
@@ -1148,24 +617,638 @@ document.getElementById('btn-reset').addEventListener('click', async function() 
   var { error } = await db.auth.updateUser({ password: pass });
   btn.disabled = false; btn.textContent = 'Update Password';
   if (error) { errEl.textContent = error.message; errEl.classList.add('show'); return; }
-  toast('Password updated! Signing you in...', 'success');
+  toast('Password updated!', 'success');
   setTimeout(function() { showLogin(); }, 1500);
 });
 
-// START
-if (!checkBuyerPortal()) {
-  // Check if this is a password reset redirect
-  var hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
-  var urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('reset') === 'true' || hashParams.get('type') === 'recovery') {
-    document.getElementById('screen-auth').classList.add('active');
-    showLogin();
-    document.getElementById('auth-reset-view').style.display = 'block';
-    document.getElementById('auth-login-view').style.display = 'none';
+function showConfirmBack() { showLogin(); }
+
+function togglePw(fieldId, btn) {
+  var input = document.getElementById(fieldId);
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
+  else { input.type = 'password'; btn.textContent = 'Show'; }
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+  var titles = { dashboard: 'Dashboard', deals: 'All Deals' };
+  if (titles[name]) document.getElementById('topbar-title').textContent = titles[name];
+  if (name === 'deals') loadAllDeals();
+  if (name === 'dashboard') loadDashboard();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  if (!currentFirmId) return;
+  var { data: deals } = await db.from('deals').select('*').eq('firm_id', currentFirmId).eq('status','active');
+  var { data: buyers } = await db.from('buyers').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId);
+  var { data: openQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status','open');
+  var { data: pubQ } = await db.from('questions').select('id, deals!inner(firm_id)').eq('deals.firm_id', currentFirmId).eq('status','published');
+  document.getElementById('stat-deals').textContent = (deals||[]).length;
+  document.getElementById('stat-buyers').textContent = (buyers||[]).length;
+  document.getElementById('stat-open').textContent = (openQ||[]).length;
+  document.getElementById('stat-pub').textContent = (pubQ||[]).length;
+  renderDealCards('dashboard-deals', deals||[]);
+}
+
+function renderDealCards(containerId, deals) {
+  var el = document.getElementById(containerId);
+  if (!deals.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128193;</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
+    return;
+  }
+  var html = '<div class="deals-grid">';
+  deals.forEach(function(d) {
+    html += '<div class="deal-card" data-id="' + d.id + '" data-name="' + d.name.replace(/"/g,'&quot;') + '" onclick="openDealFromCard(this)">';
+    html += '<div class="deal-card-top"><div><div class="deal-name">' + d.name + '</div>';
+    html += '<div class="deal-date">' + new Date(d.created_at).toLocaleDateString() + '</div></div>';
+    html += '<span class="deal-badge">Active</span></div>';
+    html += '<div class="deal-stats"><span class="deal-stat"><strong id="dsb-' + d.id + '">-</strong> buyers</span>';
+    html += '<span class="deal-stat"><strong id="dsq-' + d.id + '">-</strong> questions</span></div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  deals.forEach(async function(d) {
+    var { count: bc } = await db.from('buyers').select('*',{count:'exact',head:true}).eq('deal_id',d.id);
+    var { count: qc } = await db.from('questions').select('*',{count:'exact',head:true}).eq('deal_id',d.id);
+    var bEl = document.getElementById('dsb-'+d.id); var qEl = document.getElementById('dsq-'+d.id);
+    if (bEl) bEl.textContent = bc||0; if (qEl) qEl.textContent = qc||0;
+  });
+}
+
+function openDealFromCard(el) { openDeal(el.dataset.id, el.dataset.name); }
+
+async function loadAllDeals() {
+  if (!currentFirmId) return;
+  var { data: deals } = await db.from('deals').select('*').eq('firm_id',currentFirmId).order('created_at',{ascending:false});
+  renderDealCards('all-deals-list', deals||[]);
+}
+
+// ── NEW DEAL ──────────────────────────────────────────────────────────────────
+function openNewDealModal() { document.getElementById('modal-new-deal').classList.add('open'); document.getElementById('new-deal-name').focus(); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function createDeal() {
+  var name = document.getElementById('new-deal-name').value.trim();
+  if (!name) { toast('Please enter a deal name.', 'error'); return; }
+  var btn = document.getElementById('btn-create-deal');
+  btn.disabled = true; btn.textContent = 'Creating...';
+  var { data, error } = await db.from('deals').insert({ name:name, firm_id:currentFirmId, created_by:currentUser.id }).select().single();
+  btn.disabled = false; btn.textContent = 'Create Deal';
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  closeModal('modal-new-deal');
+  document.getElementById('new-deal-name').value = '';
+  toast('Deal created!','success');
+  openDeal(data.id, data.name);
+}
+
+// ── DEAL DETAIL ───────────────────────────────────────────────────────────────
+async function openDeal(dealId, dealName) {
+  currentDeal = { id: dealId, name: dealName };
+  document.getElementById('deal-detail-name').textContent = currentDeal.name;
+  document.getElementById('topbar-title').textContent = currentDeal.name;
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-deal-detail').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  setDealTab('tracker');
+  await loadDealData();
+}
+
+async function loadDealData() {
+  var { data: buyers } = await db.from('buyers').select('*').eq('deal_id',currentDeal.id);
+  allBuyers = buyers||[];
+  var { data: questions } = await db.from('questions').select('*').eq('deal_id',currentDeal.id).order('created_at',{ascending:true});
+  allQuestions = questions||[];
+  var { data: cats } = await db.from('deal_categories').select('*').eq('deal_id',currentDeal.id).order('name');
+  dealCategories = (cats||[]).map(function(c){return c.name;});
+  document.getElementById('deal-detail-meta').textContent = allBuyers.length + ' buyer' + (allBuyers.length!==1?'s':'') + ' \u00b7 ' + allQuestions.length + ' questions';
+  renderTrackerStats();
+  renderQuestions();
+  renderBuyers();
+  populateBuyerDropdowns();
+  populateCategoryDropdown();
+}
+
+function renderTrackerStats() {
+  var counts = {open:0,in_review:0,draft:0,published:0};
+  allQuestions.forEach(function(q){if(counts[q.status]!==undefined)counts[q.status]++;});
+  document.getElementById('tracker-stats').innerHTML =
+    '<div class="tstat"><div class="tstat-dot" style="background:#dbeafe;border:1.5px solid #3b82f6"></div><strong>'+counts.open+'</strong>&nbsp;Open</div>'+
+    '<div class="tstat"><div class="tstat-dot" style="background:#fef3c7;border:1.5px solid #f59e0b"></div><strong>'+counts.in_review+'</strong>&nbsp;In Review</div>'+
+    '<div class="tstat"><div class="tstat-dot" style="background:#f3f4f6;border:1.5px solid #9ca3af"></div><strong>'+counts.draft+'</strong>&nbsp;Draft</div>'+
+    '<div class="tstat"><div class="tstat-dot" style="background:#d1fae5;border:1.5px solid #10b981"></div><strong>'+counts.published+'</strong>&nbsp;Published</div>';
+}
+
+var cpColors = ['cp-0','cp-1','cp-2','cp-3','cp-4'];
+function buyerColor(buyerId) { var idx=allBuyers.findIndex(function(b){return b.id===buyerId;}); return cpColors[Math.max(0,idx)%cpColors.length]; }
+function buyerName(buyerId) { var b=allBuyers.find(function(b){return b.id===buyerId;}); return b?b.name:'Unknown'; }
+function statusBadge(s) {
+  var map={open:'sp-open',in_review:'sp-review',draft:'sp-draft',published:'sp-pub'};
+  var labels={open:'Open',in_review:'In Review',draft:'Draft',published:'Published'};
+  return '<span class="sp '+(map[s]||'sp-open')+'">'+(labels[s]||s)+'</span>';
+}
+
+function renderQuestions() {
+  var search = (document.getElementById('q-search').value||'').toLowerCase();
+  var statusF = document.getElementById('q-filter-status').value;
+  var buyerF = document.getElementById('q-filter-buyer').value;
+  var qs = allQuestions.slice();
+  if (search) qs=qs.filter(function(q){return q.question_text.toLowerCase().includes(search)||(q.category||'').toLowerCase().includes(search)||(q.question_number||'').toLowerCase().includes(search);});
+  if (statusF) qs=qs.filter(function(q){return q.status===statusF;});
+  if (buyerF) qs=qs.filter(function(q){return q.buyer_id===buyerF;});
+  if (portalView==='buyer') qs=qs.filter(function(q){return q.status==='published';});
+  var tbody=document.getElementById('questions-tbody');
+  if (!qs.length){tbody.innerHTML='<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>';return;}
+  if (!window.collapsedCategories) window.collapsedCategories={};
+  var groups={},groupOrder=[];
+  qs.forEach(function(q){var cat=q.category||'Uncategorized';if(!groups[cat]){groups[cat]=[];groupOrder.push(cat);}groups[cat].push(q);});
+  var html='';
+  groupOrder.forEach(function(cat){
+    var catQs=groups[cat];
+    var isCollapsed=window.collapsedCategories[cat]===true;
+    var openCount=catQs.filter(function(q){return q.status==='open';}).length;
+    var pubCount=catQs.filter(function(q){return q.status==='published';}).length;
+    var catId=cat.replace(/[^a-z0-9]/gi,'-');
+    html+='<tr class="cat-group-row" data-cat="'+catId+'" style="cursor:pointer;background:#f8faf9;user-select:none">';
+    html+='<td colspan="6" style="padding:.6rem 1rem"><div style="display:flex;align-items:center;gap:.75rem">';
+    html+='<span style="font-size:.7rem;color:#8fa5a3;display:inline-block;transform:'+(isCollapsed?'rotate(-90deg)':'rotate(0deg)')+'">&#9660;</span>';
+    html+='<span style="font-size:.78rem;font-weight:700;color:#141f1e">'+cat+'</span>';
+    html+='<span style="font-size:.68rem;color:#8fa5a3">'+catQs.length+' question'+(catQs.length!==1?'s':'')+'</span>';
+    if(openCount>0) html+='<span style="font-size:.62rem;font-weight:700;background:#dbeafe;color:#1e40af;padding:.12rem .4rem;border-radius:100px">'+openCount+' open</span>';
+    if(pubCount>0) html+='<span style="font-size:.62rem;font-weight:700;background:#d1fae5;color:#065f46;padding:.12rem .4rem;border-radius:100px">'+pubCount+' published</span>';
+    html+='</div></td></tr>';
+    if (!isCollapsed) {
+      catQs.forEach(function(q){
+        html+='<tr data-qid="'+q.id+'">';
+        html+='<td style="padding-left:2.5rem"><span class="cp '+buyerColor(q.buyer_id)+'">'+buyerName(q.buyer_id)+'</span></td>';
+        html+='<td><span class="cat-badge">'+(q.category||'')+'</span></td>';
+        html+='<td><span class="qnum">'+(q.question_number||'')+'</span></td>';
+        html+='<td style="max-width:320px">'+q.question_text+'</td>';
+        html+='<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">'+(q.vdr_reference||'')+'</td>';
+        html+='<td>'+statusBadge(q.status)+'</td></tr>';
+      });
+    }
+  });
+  tbody.innerHTML=html;
+  tbody.querySelectorAll('.cat-group-row').forEach(function(row){
+    row.addEventListener('click',function(){
+      var catId=row.dataset.cat;
+      var cat=groupOrder.find(function(c){return c.replace(/[^a-z0-9]/gi,'-')===catId;});
+      if(cat){if(!window.collapsedCategories)window.collapsedCategories={};window.collapsedCategories[cat]=!window.collapsedCategories[cat];renderQuestions();}
+    });
+  });
+  tbody.querySelectorAll('tr[data-qid]').forEach(function(row){
+    row.addEventListener('click',function(){openQuestion(row.dataset.qid);});
+  });
+}
+
+function filterQuestions(){renderQuestions();}
+
+// ── BUYERS ────────────────────────────────────────────────────────────────────
+function renderBuyers() {
+  var el=document.getElementById('buyers-list');
+  if(!allBuyers.length){el.innerHTML='<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>';return;}
+  var html='';
+  allBuyers.forEach(function(b){
+    html+='<div class="buyer-row"><div><div class="buyer-name">'+b.name+'</div>';
+    html+='<div class="buyer-email">'+(b.email||'No email set')+'</div></div>';
+    html+='<div style="display:flex;gap:.5rem;align-items:center">';
+    html+='<a class="buyer-link" href="#" data-token="'+b.access_token+'" onclick="event.preventDefault();copyBuyerLink(this.dataset.token)">Copy Portal Link</a>';
+    html+='<button onclick="deleteBuyer(\''+b.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:4px" title="Remove buyer">&#10005;</button>';
+    html+='</div></div>';
+  });
+  el.innerHTML=html;
+}
+
+function copyBuyerLink(token){
+  var link=window.location.origin+window.location.pathname+'?buyer='+token;
+  navigator.clipboard.writeText(link).then(function(){toast('Portal link copied!','success');});
+}
+
+function populateBuyerDropdowns(){
+  var sel=document.getElementById('new-q-buyer');
+  var fSel=document.getElementById('q-filter-buyer');
+  var opts='';
+  allBuyers.forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
+  sel.innerHTML=opts;
+  fSel.innerHTML='<option value="">All Buyers</option>'+opts;
+}
+
+async function addBuyer(){
+  var name=document.getElementById('new-buyer-name').value.trim();
+  var email=document.getElementById('new-buyer-email').value.trim();
+  if(!name){toast('Buyer name required.','error');return;}
+  var{error}=await db.from('buyers').insert({deal_id:currentDeal.id,name:name,email:email});
+  if(error){toast('Error: '+error.message,'error');return;}
+  document.getElementById('new-buyer-name').value='';
+  document.getElementById('new-buyer-email').value='';
+  toast('Buyer added!','success');
+  await loadDealData();
+}
+
+async function deleteBuyer(buyerId){
+  if(!confirm('Remove this buyer? Their questions will remain in the tracker.'))return;
+  var{error}=await db.from('buyers').delete().eq('id',buyerId);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Buyer removed.','success');
+  await loadDealData();
+}
+
+// ── CATEGORIES ────────────────────────────────────────────────────────────────
+var defaultCategories = ['Financial','Legal','Operations','HR','Tax','IT','Commercial','Other'];
+
+function populateCategoryDropdown(){
+  var sel=document.getElementById('new-q-cat');
+  var allCats=defaultCategories.slice();
+  dealCategories.forEach(function(c){if(!allCats.includes(c))allCats.push(c);});
+  var opts='';
+  allCats.forEach(function(c){opts+='<option value="'+c+'">'+c+'</option>';});
+  opts+='<option value="__new__">+ Create new category...</option>';
+  sel.innerHTML=opts;
+}
+
+function handleCategoryChange(sel){
+  var newCatInput=document.getElementById('new-cat-input');
+  var newCatActions=document.getElementById('new-cat-actions');
+  if(sel.value==='__new__'){
+    newCatInput.style.display='block';
+    newCatActions.style.display='flex';
+    newCatInput.focus();
   } else {
-    init();
+    newCatInput.style.display='none';
+    newCatActions.style.display='none';
   }
 }
+
+async function saveNewCategory(){
+  var name=document.getElementById('new-cat-input').value.trim();
+  if(!name)return;
+  if(!dealCategories.includes(name)){
+    await db.from('deal_categories').insert({deal_id:currentDeal.id,name:name});
+    dealCategories.push(name);
+  }
+  populateCategoryDropdown();
+  var sel=document.getElementById('new-q-cat');
+  sel.value=name;
+  document.getElementById('new-cat-input').style.display='none';
+  document.getElementById('new-cat-actions').style.display='none';
+  document.getElementById('new-cat-input').value='';
+  toast('Category added!','success');
+}
+
+function cancelNewCategory(){
+  var sel=document.getElementById('new-q-cat');
+  sel.value='Financial';
+  document.getElementById('new-cat-input').style.display='none';
+  document.getElementById('new-cat-actions').style.display='none';
+  document.getElementById('new-cat-input').value='';
+}
+
+// ── ADD QUESTION ──────────────────────────────────────────────────────────────
+async function addQuestion(){
+  var buyer_id=document.getElementById('new-q-buyer').value;
+  var category=document.getElementById('new-q-cat').value;
+  if(category==='__new__'){toast('Please save your new category first.','error');return;}
+  var question_number=document.getElementById('new-q-num').value.trim();
+  var question_text=document.getElementById('new-q-text').value.trim();
+  var vdr_reference=document.getElementById('new-q-vdr').value.trim();
+  if(!question_text){toast('Question text required.','error');return;}
+  if(!buyer_id){toast('Please add a buyer first.','error');return;}
+  var{error}=await db.from('questions').insert({deal_id:currentDeal.id,buyer_id:buyer_id,category:category,question_number:question_number,question_text:question_text,vdr_reference:vdr_reference,status:'open'});
+  if(error){toast('Error: '+error.message,'error');return;}
+  document.getElementById('new-q-text').value='';
+  document.getElementById('new-q-num').value='';
+  document.getElementById('new-q-vdr').value='';
+  toast('Question added!','success');
+  setDealTab('tracker');
+  await loadDealData();
+}
+
+async function deleteQuestion(){
+  if(!currentQuestion)return;
+  if(!confirm('Delete this question and all its messages? This cannot be undone.'))return;
+  var{error}=await db.from('questions').delete().eq('id',currentQuestion.id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('Question deleted.','success');
+  closeDetail();
+  await loadDealData();
+}
+
+// ── QUESTION DETAIL ───────────────────────────────────────────────────────────
+async function openQuestion(qId){
+  currentQuestion=allQuestions.find(function(q){return q.id===qId;});
+  if(!currentQuestion)return;
+  var isAdvisor=portalView==='advisor';
+  document.getElementById('detail-meta').innerHTML=
+    '<span class="cp '+buyerColor(currentQuestion.buyer_id)+'">'+buyerName(currentQuestion.buyer_id)+'</span> '+
+    '<span class="cat-badge">'+(currentQuestion.category||'')+'</span> '+
+    '<span class="qnum">'+(currentQuestion.question_number||'')+'</span> '+
+    statusBadge(currentQuestion.status);
+  document.getElementById('detail-q-text').textContent=currentQuestion.question_text;
+  document.getElementById('detail-response').value='';
+  document.getElementById('detail-status').value=currentQuestion.status;
+  document.getElementById('detail-advisor-sections').style.display=isAdvisor?'block':'none';
+  document.getElementById('detail-overlay').classList.add('open');
+  await loadThreads(qId, isAdvisor);
+}
+
+async function loadThreads(questionId, isAdvisor){
+  // Load external thread
+  var{data:extMsgs}=await db.from('question_messages').select('*').eq('question_id',questionId).eq('is_internal',false).order('created_at',{ascending:true});
+  renderThread('external-thread', extMsgs||[], false);
+  // Load internal thread (advisor only)
+  if(isAdvisor){
+    var{data:intMsgs}=await db.from('question_messages').select('*').eq('question_id',questionId).eq('is_internal',true).order('created_at',{ascending:true});
+    renderThread('internal-thread', intMsgs||[], true);
+  }
+}
+
+function renderThread(containerId, messages, isInternal){
+  var el=document.getElementById(containerId);
+  if(!el)return;
+  if(!messages.length){
+    el.innerHTML='<div style="color:var(--ink-faint);font-size:.75rem;font-style:italic;padding:.25rem 0">No messages yet.</div>';
+    return;
+  }
+  var html='';
+  messages.forEach(function(m){
+    var d=new Date(m.created_at);
+    var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    var timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var isBuyer=m.author_type==='buyer';
+    var bg=isInternal?'#fffbeb':'#f0fdf4';
+    var border=isInternal?'#fde68a':'#86efac';
+    var nameColor=isInternal?'#a87c2a':'#065f46';
+    if(isBuyer){bg='#eff6ff';border='#bfdbfe';nameColor='#1e40af';}
+    html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.65rem .85rem;position:relative">';
+    html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between;align-items:center">';
+    html+='<span>'+m.author_name+'</span>';
+    html+='<span style="font-weight:400;color:var(--ink-faint)">'+dateStr+' &middot; '+timeStr+'</span>';
+    html+='</div>';
+    html+='<div style="font-size:.82rem;color:var(--ink);line-height:1.5">'+m.message_text.replace(/\n/g,'<br>')+'</div>';
+    // Delete button for advisors
+    if(portalView==='advisor'){
+      html+='<button onclick="deleteMessage(\''+m.id+'\')" style="position:absolute;top:.4rem;right:.4rem;background:none;border:none;color:#d1d5db;cursor:pointer;font-size:.7rem;padding:.1rem .3rem;border-radius:3px;line-height:1" title="Delete">&#10005;</button>';
+    }
+    html+='</div>';
+  });
+  el.innerHTML=html;
+  // Scroll to bottom
+  el.scrollTop=el.scrollHeight;
+}
+
+function closeDetail(){document.getElementById('detail-overlay').classList.remove('open');currentQuestion=null;}
+
+async function saveQuestion(){
+  if(!currentQuestion)return;
+  var{error}=await db.from('questions').update({status:document.getElementById('detail-status').value,updated_at:new Date().toISOString()}).eq('id',currentQuestion.id);
+  if(error){toast('Error saving.','error');return;}
+  toast('Saved!','success');
+  closeDetail();
+  await loadDealData();
+}
+
+async function saveStatus(){
+  if(!currentQuestion)return;
+  await db.from('questions').update({status:document.getElementById('detail-status').value,updated_at:new Date().toISOString()}).eq('id',currentQuestion.id);
+}
+
+// ── MESSAGES ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-add-comment').addEventListener('click', async function(){
+  var text=document.getElementById('detail-internal').value.trim();
+  if(!text||!currentQuestion)return;
+  var btn=document.getElementById('btn-add-comment');
+  btn.disabled=true; btn.textContent='Posting...';
+  var{error}=await db.from('question_messages').insert({
+    question_id:currentQuestion.id,deal_id:currentQuestion.deal_id,
+    author_name:currentUserName,author_type:'advisor',is_internal:true,message_text:text
+  });
+  btn.disabled=false; btn.textContent='Post Note';
+  if(error){toast('Error: '+error.message,'error');return;}
+  document.getElementById('detail-internal').value='';
+  await loadThreads(currentQuestion.id, true);
+  await createNotification('New internal note on Q'+currentQuestion.question_number+' - '+currentDeal.name);
+});
+
+document.getElementById('btn-post-response').addEventListener('click', async function(){
+  var text=document.getElementById('detail-response').value.trim();
+  if(!text||!currentQuestion)return;
+  var btn=document.getElementById('btn-post-response');
+  btn.disabled=true; btn.textContent='Posting...';
+  var{error}=await db.from('question_messages').insert({
+    question_id:currentQuestion.id,deal_id:currentQuestion.deal_id,
+    author_name:currentUserName,author_type:'advisor',is_internal:false,message_text:text
+  });
+  if(!error){
+    // Auto-set status to published when advisor posts a response
+    await db.from('questions').update({status:'published',updated_at:new Date().toISOString()}).eq('id',currentQuestion.id);
+    currentQuestion.status='published';
+    document.getElementById('detail-status').value='published';
+  }
+  btn.disabled=false; btn.textContent='Post Response';
+  if(error){toast('Error: '+error.message,'error');return;}
+  document.getElementById('detail-response').value='';
+  toast('Response posted!','success');
+  await loadThreads(currentQuestion.id, true);
+  await loadDealData();
+});
+
+async function deleteMessage(messageId){
+  if(!confirm('Delete this message?'))return;
+  var{error}=await db.from('question_messages').delete().eq('id',messageId);
+  if(error){toast('Error.','error');return;}
+  await loadThreads(currentQuestion.id, portalView==='advisor');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function setDealTab(tab){
+  ['tracker','buyers','add-q'].forEach(function(t){
+    document.getElementById('deal-tab-content-'+t).style.display=t===tab?'block':'none';
+    var btn=document.getElementById('deal-tab-'+t);
+    if(btn)btn.className='btn-sm '+(t===tab?'btn-teal':'btn-ghost');
+  });
+}
+
+function setPortalView(v){
+  portalView=v;
+  document.getElementById('toggle-advisor').className='toggle-btn'+(v==='advisor'?' active':'');
+  document.getElementById('toggle-buyer').className='toggle-btn'+(v==='buyer'?' active':'');
+  renderQuestions();
+  if(v==='buyer')toast('Viewing as buyer');
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+async function createNotification(message){
+  if(!currentFirmId||!currentDeal)return;
+  await db.from('notifications').insert({firm_id:currentFirmId,deal_id:currentDeal.id,question_id:currentQuestion?currentQuestion.id:null,message:message});
+}
+
+async function loadNotifications(){
+  if(!currentFirmId)return;
+  var{data:notifs}=await db.from('notifications').select('*').eq('firm_id',currentFirmId).eq('is_read',false).order('created_at',{ascending:false}).limit(20);
+  var unread=(notifs||[]).length;
+  var badge=document.getElementById('notif-badge');
+  if(unread>0){badge.textContent=unread>9?'9+':unread;badge.style.display='flex';}
+  else{badge.style.display='none';}
+  var list=document.getElementById('notif-list');
+  if(!notifs||!notifs.length){list.innerHTML='<div style="padding:1rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No new notifications</div>';return;}
+  var html='';
+  notifs.forEach(function(n){
+    var d=new Date(n.created_at);
+    var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    html+='<div style="padding:.75rem 1rem;border-bottom:1px solid var(--rule);font-size:.8rem;color:var(--ink)">';
+    html+='<div>'+n.message+'</div>';
+    html+='<div style="font-size:.68rem;color:var(--ink-faint);margin-top:.2rem">'+dateStr+' &middot; '+timeStr+'</div>';
+    html+='</div>';
+  });
+  list.innerHTML=html;
+}
+
+function toggleNotifications(){
+  var dd=document.getElementById('notif-dropdown');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+
+async function markAllRead(){
+  if(!currentFirmId)return;
+  await db.from('notifications').update({is_read:true}).eq('firm_id',currentFirmId).eq('is_read',false);
+  document.getElementById('notif-badge').style.display='none';
+  document.getElementById('notif-dropdown').style.display='none';
+  document.getElementById('notif-list').innerHTML='<div style="padding:1rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No new notifications</div>';
+}
+
+// Close notifications when clicking outside
+document.addEventListener('click', function(e){
+  var dd=document.getElementById('notif-dropdown');
+  if(dd && dd.style.display==='block' && !dd.contains(e.target) && !e.target.closest('[onclick="toggleNotifications()"]')){
+    dd.style.display='none';
+  }
+});
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+var toastTimer;
+function toast(msg,type){
+  type=type||'';
+  var el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){el.classList.remove('show');},3000);
+}
+
+// ── BUYER PORTAL ──────────────────────────────────────────────────────────────
+function checkBuyerPortal(){
+  var params=new URLSearchParams(window.location.search);
+  var token=params.get('buyer');
+  if(token){document.getElementById('screen-auth').style.display='none';loadBuyerPortal(token);return true;}
+  return false;
+}
+
+async function loadBuyerPortal(token){
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading your portal...</div>';
+  var{data:buyer,error}=await db.from('buyers').select('*, deals(*)').eq('access_token',token).single();
+  if(error||!buyer){
+    document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>';
+    return;
+  }
+  portalBuyer=buyer;
+  var{data:questions}=await db.from('questions').select('*').eq('deal_id',buyer.deal_id).eq('buyer_id',buyer.id).order('created_at',{ascending:true});
+  var qs=questions||[];
+
+  document.body.innerHTML=
+    '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif" id="buyer-portal">'+
+    '<div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between">'+
+    '<div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div>'+
+    '<div style="font-size:.78rem;color:rgba(255,255,255,.55)">'+buyer.deals.name+' \u2014 '+buyer.name+'</div>'+
+    '</div>'+
+    '<div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem">'+
+    '<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">'+buyer.deals.name+'</h1>'+
+    '<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">'+buyer.name+' \u00b7 '+qs.length+' question'+(qs.length!==1?'s':'')+'</p>'+
+    '<div id="buyer-questions-list"></div>'+
+    '</div></div>';
+
+  renderBuyerQuestions(qs, buyer);
+}
+
+function renderBuyerQuestions(qs, buyer){
+  var container=document.getElementById('buyer-questions-list');
+  if(!qs.length){
+    container.innerHTML='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>';
+    return;
+  }
+  var html='';
+  qs.forEach(function(q){
+    html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:1rem;overflow:hidden">';
+    // Question header
+    html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05);display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">';
+    html+='<div style="flex:1">';
+    html+='<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
+    html+='<span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">'+(q.category||'')+'</span>';
+    html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+(q.question_number||'')+'</span>';
+    html+='</div>';
+    html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div>';
+    html+='</div></div>';
+    // Thread area
+    html+='<div id="buyer-thread-'+q.id+'" style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem;max-height:300px;overflow-y:auto;background:#fafbfa"></div>';
+    // Reply box
+    html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem">';
+    html+='<textarea id="buyer-reply-'+q.id+'" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
+    html+='<button data-qid="'+q.id+'" onclick="postBuyerReply(this.dataset.qid)" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap">Send</button>';
+    html+='</div></div>';
+  });
+  container.innerHTML=html;
+  // Load threads for each question
+  qs.forEach(function(q){ loadBuyerThread(q.id, buyer.name); });
+}
+
+async function loadBuyerThread(questionId, buyerName){
+  var{data:msgs}=await db.from('question_messages').select('*').eq('question_id',questionId).eq('is_internal',false).order('created_at',{ascending:true});
+  var el=document.getElementById('buyer-thread-'+questionId);
+  if(!el)return;
+  if(!msgs||!msgs.length){el.innerHTML='<div style="color:#8fa5a3;font-size:.78rem;font-style:italic">No responses yet.</div>';return;}
+  var html='';
+  msgs.forEach(function(m){
+    var d=new Date(m.created_at);
+    var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    var timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var isBuyer=m.author_type==='buyer';
+    var bg=isBuyer?'#eff6ff':'#f0fdf4';
+    var border=isBuyer?'#bfdbfe':'#86efac';
+    var nameColor=isBuyer?'#1e40af':'#065f46';
+    html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem">';
+    html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between">';
+    html+='<span>'+m.author_name+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+' &middot; '+timeStr+'</span></div>';
+    html+='<div style="font-size:.82rem;color:#141f1e;line-height:1.5">'+m.message_text.replace(/\n/g,'<br>')+'</div></div>';
+  });
+  el.innerHTML=html;
+  el.scrollTop=el.scrollHeight;
+}
+
+async function postBuyerReply(questionId){
+  if(!portalBuyer)return;
+  var input=document.getElementById('buyer-reply-'+questionId);
+  var text=input.value.trim();
+  if(!text)return;
+  var{error}=await db.from('question_messages').insert({
+    question_id:questionId,deal_id:portalBuyer.deal_id,
+    author_name:portalBuyer.name,author_type:'buyer',
+    buyer_id:portalBuyer.id,is_internal:false,message_text:text
+  });
+  if(error){alert('Error posting reply: '+error.message);return;}
+  input.value='';
+  // Update question status back to in_review
+  await db.from('questions').update({status:'in_review',updated_at:new Date().toISOString()}).eq('id',questionId);
+  loadBuyerThread(questionId, portalBuyer.name);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+if(!checkBuyerPortal()){init();}
 </script>
 </body>
 </html>
