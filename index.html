@@ -721,28 +721,79 @@ function statusBadge(s) {
 }
 
 function renderQuestions() {
-  const search = (document.getElementById('q-search').value || '').toLowerCase();
-  const statusF = document.getElementById('q-filter-status').value;
-  const buyerF = document.getElementById('q-filter-buyer').value;
-  let qs = allQuestions.slice();
-  if (search) qs = qs.filter(function(q) { return q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search); });
+  var search = (document.getElementById('q-search').value || '').toLowerCase();
+  var statusF = document.getElementById('q-filter-status').value;
+  var buyerF = document.getElementById('q-filter-buyer').value;
+  var qs = allQuestions.slice();
+  if (search) qs = qs.filter(function(q) { return q.question_text.toLowerCase().includes(search) || (q.category||'').toLowerCase().includes(search) || (q.question_number||'').toLowerCase().includes(search); });
   if (statusF) qs = qs.filter(function(q) { return q.status === statusF; });
   if (buyerF) qs = qs.filter(function(q) { return q.buyer_id === buyerF; });
   if (portalView === 'buyer') qs = qs.filter(function(q) { return q.status === 'published'; });
-  const tbody = document.getElementById('questions-tbody');
+  var tbody = document.getElementById('questions-tbody');
   if (!qs.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>'; return; }
-  let html = '';
+  if (!window.collapsedCategories) window.collapsedCategories = {};
+  var groups = {};
+  var groupOrder = [];
   qs.forEach(function(q) {
-    html += '<tr data-qid="' + q.id + '" onclick="openQuestion(this.dataset.qid)">';
-    html += '<td><span class="cp ' + buyerColor(q.buyer_id) + '">' + buyerName(q.buyer_id) + '</span></td>';
-    html += '<td><span class="cat-badge">' + (q.category || '') + '</span></td>';
-    html += '<td><span class="qnum">' + (q.question_number || '') + '</span></td>';
-    html += '<td style="max-width:320px">' + q.question_text + '</td>';
-    html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (q.vdr_reference || '') + '</td>';
-    html += '<td>' + statusBadge(q.status) + '</td></tr>';
+    var cat = q.category || 'Uncategorized';
+    if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
+    groups[cat].push(q);
+  });
+  var html = '';
+  groupOrder.forEach(function(cat) {
+    var catQs = groups[cat];
+    var isCollapsed = window.collapsedCategories[cat] === true;
+    var openCount = catQs.filter(function(q) { return q.status === 'open'; }).length;
+    var pubCount = catQs.filter(function(q) { return q.status === 'published'; }).length;
+    var catId = cat.replace(/[^a-z0-9]/gi, '-');
+    html += '<tr class="cat-group-row" data-cat="' + catId + '" style="cursor:pointer;background:#f8faf9;user-select:none">';
+    html += '<td colspan="6" style="padding:.6rem 1rem">';
+    html += '<div style="display:flex;align-items:center;gap:.75rem">';
+    html += '<span style="font-size:.7rem;color:#8fa5a3;display:inline-block;transform:' + (isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)') + '">&#9660;</span>';
+    html += '<span style="font-size:.78rem;font-weight:700;color:#141f1e">' + cat + '</span>';
+    html += '<span style="font-size:.68rem;color:#8fa5a3">' + catQs.length + ' question' + (catQs.length !== 1 ? 's' : '') + '</span>';
+    if (openCount > 0) html += '<span style="font-size:.62rem;font-weight:700;background:#dbeafe;color:#1e40af;padding:.12rem .4rem;border-radius:100px">' + openCount + ' open</span>';
+    if (pubCount > 0) html += '<span style="font-size:.62rem;font-weight:700;background:#d1fae5;color:#065f46;padding:.12rem .4rem;border-radius:100px">' + pubCount + ' published</span>';
+    html += '</div></td></tr>';
+    if (!isCollapsed) {
+      catQs.forEach(function(q) {
+        html += '<tr data-qid="' + q.id + '" style="transition:background .1s">';
+        html += '<td style="padding-left:2.5rem"><span class="cp ' + buyerColor(q.buyer_id) + '">' + buyerName(q.buyer_id) + '</span></td>';
+        html += '<td><span class="cat-badge">' + (q.category || '') + '</span></td>';
+        html += '<td><span class="qnum">' + (q.question_number || '') + '</span></td>';
+        html += '<td style="max-width:320px">' + q.question_text + '</td>';
+        html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (q.vdr_reference || '') + '</td>';
+        html += '<td>' + statusBadge(q.status) + '</td></tr>';
+      });
+    }
   });
   tbody.innerHTML = html;
+  // Attach click handlers to category rows
+  tbody.querySelectorAll('.cat-group-row').forEach(function(row) {
+    row.addEventListener('click', function() {
+      var catId = row.dataset.cat;
+      // Find original cat name from groupOrder
+      var cat = groupOrder.find(function(c) { return c.replace(/[^a-z0-9]/gi, '-') === catId; });
+      if (cat) {
+        if (!window.collapsedCategories) window.collapsedCategories = {};
+        window.collapsedCategories[cat] = !window.collapsedCategories[cat];
+        renderQuestions();
+      }
+    });
+  });
+  // Attach click handlers to question rows
+  tbody.querySelectorAll('tr[data-qid]').forEach(function(row) {
+    row.addEventListener('click', function() { openQuestion(row.dataset.qid); });
+  });
 }
+
+
+function toggleCategory(cat) {
+  if (!window.collapsedCategories) window.collapsedCategories = {};
+  window.collapsedCategories[cat] = !window.collapsedCategories[cat];
+  renderQuestions();
+}
+
 
 function filterQuestions() { renderQuestions(); }
 
