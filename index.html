@@ -483,6 +483,7 @@ let currentDeal = null;
 let allQuestions = [];
 let allBuyers = [];
 let currentQuestion = null;
+let currentUserName = 'Advisor';
 let portalView = 'advisor';
 
 // INIT
@@ -510,9 +511,10 @@ async function loadUserProfile() {
   const { data } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
   if (data) {
     currentFirmId = data.firm_id;
-    const initials = (data.full_name || currentUser.email).substring(0,2).toUpperCase();
+    currentUserName = data.full_name || currentUser.email;
+    const initials = currentUserName.substring(0,2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name').textContent = data.full_name || 'Advisor';
+    document.getElementById('user-name').textContent = currentUserName;
     document.getElementById('user-email-display').textContent = currentUser.email;
   }
 }
@@ -1086,7 +1088,7 @@ document.getElementById('btn-add-comment').addEventListener('click', async funct
   if (!text || !currentQuestion) return;
   var btn = document.getElementById('btn-add-comment');
   btn.disabled = true; btn.textContent = 'Posting...';
-  var authorName = document.getElementById('user-name').textContent || 'Advisor';
+  var authorName = currentUserName || 'Advisor';
   var { error } = await db.from('question_comments').insert({
     question_id: currentQuestion.id,
     deal_id: currentQuestion.deal_id,
