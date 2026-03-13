@@ -673,11 +673,18 @@ function renderDealCards(containerId, deals) {
   });
   html += '</div>';
   el.innerHTML = html;
-  deals.forEach(async function(d) {
-    var { count: bc } = await db.from('buyers').select('*',{count:'exact',head:true}).eq('deal_id',d.id);
-    var { count: qc } = await db.from('questions').select('*',{count:'exact',head:true}).eq('deal_id',d.id);
-    var bEl = document.getElementById('dsb-'+d.id); var qEl = document.getElementById('dsq-'+d.id);
-    if (bEl) bEl.textContent = bc||0; if (qEl) qEl.textContent = qc||0;
+  deals.forEach(function(d) {
+    Promise.all([
+      db.from('buyers').select('*',{count:'exact',head:true}).eq('deal_id',d.id),
+      db.from('questions').select('*',{count:'exact',head:true}).eq('deal_id',d.id)
+    ]).then(function(results) {
+      var bc = results[0].count;
+      var qc = results[1].count;
+      var bEl = document.getElementById('dsb-'+d.id);
+      var qEl = document.getElementById('dsq-'+d.id);
+      if (bEl) bEl.textContent = bc||0;
+      if (qEl) qEl.textContent = qc||0;
+    });
   });
 }
 
