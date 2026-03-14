@@ -504,6 +504,50 @@
   </div>
 </div>
 
+<!-- BILLING MODAL -->
+<div class="modal-overlay" id="modal-billing">
+  <div class="modal" style="max-width:560px">
+    <h3>Choose a Plan</h3>
+    <p class="sub">Select a plan for your new deal. You only pay per deal — no subscriptions.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div class="plan-card" id="plan-starter" onclick="selectPlan('starter')" style="border:2px solid var(--rule-mid);border-radius:10px;padding:1.5rem;cursor:pointer;transition:all .15s">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.5rem">Starter</div>
+        <div style="font-size:2rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1">$750</div>
+        <div style="font-size:.75rem;color:var(--ink-soft);margin-top:.25rem;margin-bottom:1rem">per deal</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:.4rem">
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;1 buyer</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Up to 100 questions</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Full tracker &amp; threads</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Export to Excel</li>
+        </ul>
+      </div>
+      <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')" style="border:2px solid var(--teal);border-radius:10px;padding:1.5rem;cursor:pointer;transition:all .15s;background:var(--teal-bg,rgba(42,92,89,.04))">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)">Standard</div>
+          <span style="font-size:.6rem;font-weight:700;background:var(--teal);color:#fff;padding:.15rem .5rem;border-radius:100px">POPULAR</span>
+        </div>
+        <div style="font-size:2rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1">$1,750</div>
+        <div style="font-size:.75rem;color:var(--ink-soft);margin-top:.25rem;margin-bottom:1rem">per deal</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:.4rem">
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Up to 5 buyers</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Unlimited questions</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Full tracker &amp; threads</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;AI import &amp; export</li>
+          <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Priority support</li>
+        </ul>
+      </div>
+    </div>
+    <div id="billing-deal-name-row" class="form-group">
+      <label class="form-label">Deal Name</label>
+      <input class="form-input" type="text" id="billing-deal-name" placeholder="e.g. Project Atlas"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-billing')">Cancel</button>
+      <button class="btn-confirm" id="btn-checkout" onclick="startCheckout()">Continue to Payment</button>
+    </div>
+  </div>
+</div>
+
 <!-- NEW DEAL MODAL -->
 <div class="modal-overlay" id="modal-new-deal">
   <div class="modal">
@@ -921,8 +965,10 @@ async function toggleDealStatus(dealId, currentStatus) {
 }
 
 function openNewDealModal() {
-  document.getElementById('modal-new-deal').classList.add('open');
-  document.getElementById('new-deal-name').focus();
+  // Show billing modal instead of direct deal creation
+  selectPlan('standard'); // default selection
+  document.getElementById('modal-billing').classList.add('open');
+  setTimeout(function() { document.getElementById('billing-deal-name').focus(); }, 100);
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -1720,7 +1766,98 @@ setDealTab = function(tab) {
 };
 
 
+
+// ── STRIPE BILLING ────────────────────────────────────────────────────────────
+
+var PRICE_IDS = {
+  starter: 'price_1TAwARQsStEsWYrIfato75C5',
+  standard: 'price_1TAwBOQsStEsWYrIVnqMXQyX'
+};
+
+var selectedPlan = 'standard';
+
+function selectPlan(plan) {
+  selectedPlan = plan;
+  var starterCard = document.getElementById('plan-starter');
+  var standardCard = document.getElementById('plan-standard');
+  if (plan === 'starter') {
+    starterCard.style.border = '2px solid var(--teal)';
+    starterCard.style.background = 'rgba(42,92,89,.04)';
+    standardCard.style.border = '2px solid var(--rule-mid)';
+    standardCard.style.background = 'transparent';
+  } else {
+    standardCard.style.border = '2px solid var(--teal)';
+    standardCard.style.background = 'rgba(42,92,89,.04)';
+    starterCard.style.border = '2px solid var(--rule-mid)';
+    starterCard.style.background = 'transparent';
+  }
+}
+
+async function startCheckout() {
+  var dealName = document.getElementById('billing-deal-name').value.trim();
+  if (!dealName) { toast('Please enter a deal name.', 'error'); return; }
+  var btn = document.getElementById('btn-checkout');
+  btn.disabled = true; btn.textContent = 'Loading...';
+
+  // Store deal name in session for after payment
+  sessionStorage.setItem('pending_deal_name', dealName);
+  sessionStorage.setItem('pending_deal_plan', selectedPlan);
+
+  var priceId = PRICE_IDS[selectedPlan];
+  var successUrl = window.location.origin + window.location.pathname + '?payment=success&deal=' + encodeURIComponent(dealName);
+  var cancelUrl = window.location.origin + window.location.pathname + '?payment=cancelled';
+
+  var r = await db.functions.invoke('clever-service', {
+    body: {
+      price_id: priceId,
+      deal_name: dealName,
+      success_url: successUrl,
+      cancel_url: cancelUrl
+    }
+  });
+
+  btn.disabled = false; btn.textContent = 'Continue to Payment';
+
+  if (r.error || !r.data || !r.data.url) {
+    toast('Error starting checkout: ' + (r.data && r.data.error ? r.data.error.message : 'Unknown error'), 'error');
+    return;
+  }
+
+  // Redirect to Stripe checkout
+  window.location.href = r.data.url;
+}
+
+async function checkPaymentReturn() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('payment') === 'success') {
+    var dealName = params.get('deal') || sessionStorage.getItem('pending_deal_name') || 'New Deal';
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Create the deal now that payment is confirmed
+    toast('Payment confirmed! Creating your deal...', 'success');
+    if (currentFirmId) {
+      var r = await db.from('deals').insert({ name: dealName, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
+      if (!r.error) {
+        sessionStorage.removeItem('pending_deal_name');
+        sessionStorage.removeItem('pending_deal_plan');
+        await loadDashboard();
+        openDeal(r.data.id, r.data.name);
+      }
+    }
+  } else if (params.get('payment') === 'cancelled') {
+    window.history.replaceState({}, '', window.location.pathname);
+    toast('Payment cancelled.');
+  }
+}
+
 if (!checkBuyerPortal()) { init(); }
+
+// Check for payment return after auth loads
+db.auth.onAuthStateChange(function(event, session) {
+  if (event === 'SIGNED_IN' && session) {
+    setTimeout(checkPaymentReturn, 1000);
+  }
+});
 
 </script>
 </body>
