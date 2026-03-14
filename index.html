@@ -352,7 +352,7 @@
           <div><h2 id="deal-detail-name">Deal Name</h2><p id="deal-detail-meta">Loading...</p></div>
           <div class="view-toggle">
             <button class="toggle-btn active" id="toggle-advisor" onclick="setPortalView('advisor')">Advisor View</button>
-            <button class="toggle-btn" id="toggle-buyer" onclick="setPortalView('buyer')">Buyer View</button>
+            <button class="toggle-btn" id="toggle-buyer" onclick="setPortalView('buyer')">Counterparty View</button>
           </div>
         </div>
         <div style="display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--rule);padding-bottom:.75rem">
@@ -404,7 +404,8 @@
         </div>
         <div id="deal-tab-content-buyers" style="display:none">
           <!-- COUNTERPARTIES -->
-          <div style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:.75rem;letter-spacing:.02em">Counterparties</div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:.5rem;letter-spacing:.02em">Counterparties</div>
+          <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:1rem;line-height:1.5;">Counterparties can view and respond to their own questions only. They cannot see other parties, internal notes, client information, or anything unpublished.</div>
           <div class="buyers-list" id="buyers-list"></div>
           <div class="add-buyer-form" style="margin-bottom:2rem">
             <h4>Add a Counterparty</h4>
