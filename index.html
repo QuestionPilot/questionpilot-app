@@ -6,6 +6,7 @@
   <title>Question Pilot</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -354,6 +355,8 @@
           <button class="btn-sm btn-teal" id="deal-tab-tracker" onclick="setDealTab('tracker')">Tracker</button>
           <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Buyers</button>
           <button class="btn-sm btn-ghost" id="deal-tab-add-q" onclick="setDealTab('add-q')">+ Add Question</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-import" onclick="setDealTab('import')">&#8679; Import</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-export" onclick="exportTracker()" style="margin-left:auto">&#8681; Export</button>
         </div>
 
         <!-- TRACKER TAB -->
@@ -384,6 +387,56 @@
               </thead>
               <tbody id="questions-tbody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- IMPORT TAB -->
+        <div id="deal-tab-content-import" style="display:none">
+          <div style="max-width:680px">
+            <div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:2rem;margin-bottom:1.25rem">
+              <h3 style="font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:.35rem">Import Questions from Excel or CSV</h3>
+              <p style="font-size:.85rem;color:var(--ink-soft);margin-bottom:1.5rem">Upload any diligence tracker — AI will read your file, identify the columns, and map everything automatically. You can review before importing.</p>
+              <div id="import-buyer-row" class="form-group">
+                <label class="form-label">Assign all imported questions to</label>
+                <select class="form-input" id="import-buyer-sel" style="max-width:300px"></select>
+              </div>
+              <div id="import-drop-zone" style="border:2px dashed var(--rule-mid);border-radius:10px;padding:2.5rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg)" onclick="document.getElementById('import-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--teal)'" ondragleave="this.style.borderColor='var(--rule-mid)'" ondrop="handleImportDrop(event)">
+                <div style="font-size:2rem;margin-bottom:.75rem">📂</div>
+                <div style="font-size:.9rem;font-weight:600;color:var(--ink);margin-bottom:.3rem">Drop your file here or click to browse</div>
+                <div style="font-size:.78rem;color:var(--ink-faint)">Supports .xlsx, .xls, .csv</div>
+                <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)"/>
+              </div>
+              <div id="import-status" style="margin-top:1rem;display:none">
+                <div style="display:flex;align-items:center;gap:.75rem;padding:1rem;background:var(--teal-bg,rgba(42,92,89,.07));border-radius:8px">
+                  <div class="spinner"></div>
+                  <div id="import-status-text" style="font-size:.85rem;color:var(--teal);font-weight:500">Reading file...</div>
+                </div>
+              </div>
+            </div>
+            <!-- PREVIEW TABLE -->
+            <div id="import-preview" style="display:none">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div>
+                  <div style="font-size:.95rem;font-weight:700;color:var(--ink)">Preview <span id="import-count"></span></div>
+                  <div style="font-size:.78rem;color:var(--ink-soft);margin-top:.15rem">Review before importing. Uncheck any rows to skip.</div>
+                </div>
+                <div style="display:flex;gap:.5rem">
+                  <button class="btn-sm btn-ghost" onclick="cancelImport()" style="border:1px solid var(--rule-mid)">Cancel</button>
+                  <button class="btn-sm btn-teal" onclick="confirmImport()">Import All</button>
+                </div>
+              </div>
+              <div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
+                <table class="tbl" id="import-preview-table">
+                  <thead>
+                    <tr>
+                      <th style="width:32px"><input type="checkbox" id="import-check-all" checked onchange="toggleAllImport(this)"/></th>
+                      <th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="import-preview-tbody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1419,6 +1472,246 @@ async function postBuyerReply(questionId) {
   await db.from('questions').update({ status: 'in_review', updated_at: new Date().toISOString() }).eq('id', questionId);
   loadBuyerThread(questionId);
 }
+
+
+// ── AI IMPORT & EXPORT ────────────────────────────────────────────────────────
+
+var importedRows = [];
+var anthropicKey = null;
+
+async function getAnthropicKey() {
+  if (anthropicKey) return anthropicKey;
+  var r = await db.from('app_config').select('value').eq('key', 'anthropic_key').single();
+  if (r.data) { anthropicKey = r.data.value; return anthropicKey; }
+  return null;
+}
+
+function handleImportDrop(event) {
+  event.preventDefault();
+  document.getElementById('import-drop-zone').style.borderColor = 'var(--rule-mid)';
+  var file = event.dataTransfer.files[0];
+  if (file) processImportFile(file);
+}
+
+function handleImportFile(input) {
+  var file = input.files[0];
+  if (file) processImportFile(file);
+  input.value = '';
+}
+
+async function processImportFile(file) {
+  var statusEl = document.getElementById('import-status');
+  var statusText = document.getElementById('import-status-text');
+  var previewEl = document.getElementById('import-preview');
+  statusEl.style.display = 'block';
+  previewEl.style.display = 'none';
+  statusText.textContent = 'Reading file...';
+
+  try {
+    // Parse file with SheetJS
+    var data = await file.arrayBuffer();
+    var workbook = XLSX.read(data, { type: 'array' });
+    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    if (!rows.length) { toast('File appears empty.', 'error'); statusEl.style.display = 'none'; return; }
+
+    // Get headers and first 20 rows for AI analysis
+    var headers = rows[0];
+    var sampleRows = rows.slice(1, 21);
+    var sampleText = headers.join(' | ') + '\n' + sampleRows.map(function(r) { return r.join(' | '); }).join('\n');
+
+    statusText.textContent = 'AI is analyzing your file...';
+
+    var key = await getAnthropicKey();
+    if (!key) { toast('API key not found in config.', 'error'); statusEl.style.display = 'none'; return; }
+
+    var prompt = 'You are parsing a due diligence question tracker exported from Excel or CSV.\n\nHere are the headers and first rows:\n\n' + sampleText + '\n\nIdentify which column index (0-based) corresponds to each field. Respond ONLY with valid JSON, no explanation:\n{\n  "question": <column_index or null>,\n  "category": <column_index or null>,\n  "question_number": <column_index or null>,\n  "vdr_reference": <column_index or null>\n}\n\nIf a field does not exist in the data, use null. The most important field is "question" - find the column with the actual question text.';
+
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, messages: [{ role: 'user', content: prompt }] })
+    });
+
+    var result = await response.json();
+    var mappingText = result.content[0].text.trim();
+    // Strip markdown if present
+    mappingText = mappingText.replace(/```json|```/g, '').trim();
+    var mapping = JSON.parse(mappingText);
+
+    if (mapping.question === null || mapping.question === undefined) {
+      toast('Could not find a question column. Check your file format.', 'error');
+      statusEl.style.display = 'none';
+      return;
+    }
+
+    statusText.textContent = 'Parsing questions...';
+
+    // Now parse all rows using the mapping
+    var dataRows = rows.slice(1).filter(function(r) { return r[mapping.question] && String(r[mapping.question]).trim(); });
+
+    // Use AI to clean and standardize categories if we have them
+    var categories = [];
+    if (mapping.category !== null) {
+      var rawCats = [...new Set(dataRows.map(function(r) { return String(r[mapping.category]||'').trim(); }).filter(Boolean))];
+      if (rawCats.length > 0 && rawCats.length <= 30) {
+        statusText.textContent = 'AI is standardizing categories...';
+        var catPrompt = 'Standardize these due diligence categories into clean, consistent names. Map each raw value to a standardized name. Use standard categories like Financial, Legal, Operations, HR, Tax, IT, Commercial, Real Estate, Environmental, Insurance, or create appropriate ones.\n\nRaw categories: ' + JSON.stringify(rawCats) + '\n\nRespond ONLY with valid JSON mapping raw to standardized:\n{"raw_category": "Standardized Category", ...}';
+        var catResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: catPrompt }] })
+        });
+        var catResult = await catResponse.json();
+        var catText = catResult.content[0].text.trim().replace(/```json|```/g, '').trim();
+        try { categories = JSON.parse(catText); } catch(e) { categories = {}; }
+      }
+    }
+
+    // Build preview rows
+    importedRows = dataRows.map(function(r, i) {
+      var rawCat = mapping.category !== null ? String(r[mapping.category]||'').trim() : 'Other';
+      var cleanCat = categories[rawCat] || rawCat || 'Other';
+      return {
+        include: true,
+        question_text: String(r[mapping.question]||'').trim(),
+        category: cleanCat,
+        question_number: mapping.question_number !== null ? String(r[mapping.question_number]||'').trim() : '',
+        vdr_reference: mapping.vdr_reference !== null ? String(r[mapping.vdr_reference]||'').trim() : ''
+      };
+    }).filter(function(r) { return r.question_text; });
+
+    statusEl.style.display = 'none';
+    renderImportPreview();
+
+  } catch(e) {
+    console.error(e);
+    toast('Error parsing file: ' + e.message, 'error');
+    statusEl.style.display = 'none';
+  }
+}
+
+function renderImportPreview() {
+  var previewEl = document.getElementById('import-preview');
+  var tbody = document.getElementById('import-preview-tbody');
+  document.getElementById('import-count').textContent = importedRows.length + ' questions found';
+  var html = '';
+  importedRows.forEach(function(row, i) {
+    html += '<tr>';
+    html += '<td><input type="checkbox" class="import-row-check" data-idx="' + i + '" ' + (row.include ? 'checked' : '') + '/></td>';
+    html += '<td><span class="cat-badge">' + (row.category||'') + '</span></td>';
+    html += '<td style="font-size:.72rem;color:var(--teal);font-weight:700;font-family:monospace">' + (row.question_number||'') + '</td>';
+    html += '<td style="max-width:300px;font-size:.82rem">' + row.question_text + '</td>';
+    html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (row.vdr_reference||'') + '</td>';
+    html += '</tr>';
+  });
+  tbody.innerHTML = html;
+  tbody.querySelectorAll('.import-row-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      importedRows[parseInt(cb.dataset.idx)].include = cb.checked;
+    });
+  });
+  previewEl.style.display = 'block';
+}
+
+function toggleAllImport(cb) {
+  var checked = cb.checked;
+  importedRows.forEach(function(r) { r.include = checked; });
+  document.querySelectorAll('.import-row-check').forEach(function(c) { c.checked = checked; });
+}
+
+function cancelImport() {
+  importedRows = [];
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-status').style.display = 'none';
+}
+
+async function confirmImport() {
+  var buyerId = document.getElementById('import-buyer-sel').value;
+  if (!buyerId) { toast('Please select a buyer first.', 'error'); return; }
+  var toImport = importedRows.filter(function(r) { return r.include; });
+  if (!toImport.length) { toast('No rows selected.', 'error'); return; }
+  var btn = document.querySelector('[onclick="confirmImport()"]');
+  btn.disabled = true; btn.textContent = 'Importing...';
+
+  // Save any new categories
+  var existingCats = defaultCategories.concat(dealCategories);
+  var newCats = [...new Set(toImport.map(function(r) { return r.category; }))].filter(function(c) { return c && !existingCats.includes(c); });
+  for (var i = 0; i < newCats.length; i++) {
+    await db.from('deal_categories').insert({ deal_id: currentDeal.id, name: newCats[i] }).select();
+  }
+
+  // Insert questions in batches
+  var inserts = toImport.map(function(r) {
+    return { deal_id: currentDeal.id, buyer_id: buyerId, category: r.category, question_number: r.question_number, question_text: r.question_text, vdr_reference: r.vdr_reference, status: 'open' };
+  });
+
+  var batchSize = 50;
+  for (var j = 0; j < inserts.length; j += batchSize) {
+    var batch = inserts.slice(j, j + batchSize);
+    var r = await db.from('questions').insert(batch);
+    if (r.error) { toast('Error importing: ' + r.error.message, 'error'); btn.disabled = false; btn.textContent = 'Import All'; return; }
+  }
+
+  btn.disabled = false; btn.textContent = 'Import All';
+  importedRows = [];
+  document.getElementById('import-preview').style.display = 'none';
+  toast(toImport.length + ' questions imported!', 'success');
+  setDealTab('tracker');
+  await loadDealData();
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+async function exportTracker() {
+  if (!currentDeal) return;
+  toast('Preparing export...');
+
+  var rows = [['Counterparty', 'Category', 'Q #', 'Question', 'VDR Ref.', 'Status', 'Response']];
+  allQuestions.forEach(function(q) {
+    var buyer = allBuyers.find(function(b) { return b.id === q.buyer_id; });
+    rows.push([
+      buyer ? buyer.name : '',
+      q.category || '',
+      q.question_number || '',
+      q.question_text || '',
+      q.vdr_reference || '',
+      q.status || '',
+      q.client_response || ''
+    ]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:20},{wch:15},{wch:8},{wch:60},{wch:12},{wch:12},{wch:60}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Tracker');
+  XLSX.writeFile(wb, currentDeal.name.replace(/[^a-z0-9]/gi,'-') + '-tracker.xlsx');
+  toast('Export ready!', 'success');
+}
+
+// Populate import buyer dropdown when switching to import tab
+var _origSetDealTab = setDealTab;
+setDealTab = function(tab) {
+  _origSetDealTab(tab);
+  if (tab === 'import') {
+    var sel = document.getElementById('import-buyer-sel');
+    var opts = '';
+    allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
+    sel.innerHTML = opts || '<option value="">No buyers — add one first</option>';
+    // Show import tab button as active
+    var importBtn = document.getElementById('deal-tab-import');
+    if (importBtn) importBtn.className = 'btn-sm btn-teal';
+  } else {
+    var importBtn = document.getElementById('deal-tab-import');
+    if (importBtn) importBtn.className = 'btn-sm btn-ghost';
+  }
+};
+
 
 if (!checkBuyerPortal()) { init(); }
 
