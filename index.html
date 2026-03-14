@@ -709,10 +709,10 @@ function togglePw(fieldId,btn) { var input=document.getElementById(fieldId); if(
 async function loadAccountView() {
   document.getElementById('acct-name').value = currentUserName || '';
   document.getElementById('acct-email').value = (currentUser && currentUser.email) || '';
-  // Load firm name from profiles
-  if (currentUser) {
-    var r = await db.from('profiles').select('firm_name').eq('id', currentUser.id).single();
-    if (r.data) document.getElementById('acct-firm').value = r.data.firm_name || '';
+  // Load firm name from firms table via firm_id
+  if (currentFirmId) {
+    var r = await db.from('firms').select('name').eq('id', currentFirmId).single();
+    if (r.data) document.getElementById('acct-firm').value = r.data.name || '';
   }
   // Reset password fields
   document.getElementById('acct-new-pw').value = '';
@@ -735,14 +735,15 @@ async function saveProfile() {
   btn.disabled = true; btn.textContent = 'Saving...';
   // Update Supabase auth metadata
   var r1 = await db.auth.updateUser({ data: { full_name: name } });
-  // Update profiles table
-  var r2 = await db.from('profiles').update({ full_name: name, firm_name: firm }).eq('id', currentUser.id);
+  // Update profiles table (name only)
+  var r2 = await db.from('profiles').update({ full_name: name }).eq('id', currentUser.id);
+  // Update firms table (firm name)
+  var r3 = firm && currentFirmId ? await db.from('firms').update({ name: firm }).eq('id', currentFirmId) : { error: null };
   btn.disabled = false; btn.textContent = 'Save Profile';
-  if (r1.error || r2.error) {
-    errEl.textContent = (r1.error || r2.error).message; errEl.classList.add('show'); return;
+  if (r1.error || r2.error || r3.error) {
+    errEl.textContent = (r1.error || r2.error || r3.error).message; errEl.classList.add('show'); return;
   }
   currentUserName = name;
-  currentFirmName = firm;
   var initials = name.replace(/\s+/g,' ').trim().split(' ').map(function(w){return w[0];}).join('').substring(0,2).toUpperCase();
   document.getElementById('user-avatar').textContent = initials;
   document.getElementById('user-name').textContent = name;
