@@ -1536,8 +1536,11 @@ async function processImportFile(file) {
     });
 
     var result = await response.json();
+    console.log('AI mapping response:', result);
+    if (!result.content || !result.content[0]) {
+      throw new Error('AI API error: ' + (result.error ? result.error.message : JSON.stringify(result)));
+    }
     var mappingText = result.content[0].text.trim();
-    // Strip markdown if present
     mappingText = mappingText.replace(/```json|```/g, '').trim();
     var mapping = JSON.parse(mappingText);
 
@@ -1565,7 +1568,9 @@ async function processImportFile(file) {
           body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: catPrompt }] })
         });
         var catResult = await catResponse.json();
-        var catText = catResult.content[0].text.trim().replace(/```json|```/g, '').trim();
+        console.log('AI category response:', catResult);
+        if (!catResult.content || !catResult.content[0]) { categories = {}; }
+        var catText = catResult.content && catResult.content[0] ? catResult.content[0].text.trim().replace(/```json|```/g, '').trim() : '{}';
         try { categories = JSON.parse(catText); } catch(e) { categories = {}; }
       }
     }
