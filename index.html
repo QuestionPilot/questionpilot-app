@@ -1535,10 +1535,13 @@ async function processImportFile(file) {
     var response = await db.functions.invoke('swift-task', {
       body: { prompt: prompt, max_tokens: 500 }
     });
+    console.log('Edge function response:', JSON.stringify(response));
     var result = response.data;
-    console.log('AI mapping response:', result);
+    if (response.error) {
+      throw new Error('Edge function error: ' + JSON.stringify(response.error));
+    }
     if (!result || !result.content || !result.content[0]) {
-      throw new Error('AI API error: ' + (result && result.error ? result.error.message : JSON.stringify(result)));
+      throw new Error('AI API error: ' + JSON.stringify(result));
     }
     var mappingText = result.content[0].text.trim();
     mappingText = mappingText.replace(/```json|```/g, '').trim();
