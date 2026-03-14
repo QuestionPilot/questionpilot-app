@@ -1807,24 +1807,27 @@ async function startCheckout() {
   var successUrl = window.location.origin + window.location.pathname + '?payment=success&deal=' + encodeURIComponent(dealName);
   var cancelUrl = window.location.origin + window.location.pathname + '?payment=cancelled';
 
-  var r = await db.functions.invoke('clever-service', {
-    body: {
-      price_id: priceId,
-      deal_name: dealName,
-      success_url: successUrl,
-      cancel_url: cancelUrl
-    }
-  });
+  console.log('Calling clever-service with:', { price_id: priceId, deal_name: dealName });
+  
+  try {
+    var r = await Promise.race([
+      db.functions.invoke('clever-service', {
+        body: { price_id: priceId, deal_name: dealName, success_url: successUrl, cancel_url: cancelUrl }
+      }),
+      new Promise(function(_, reject) { setTimeout(function() { reject(new Error('Timeout after 10s')); }, 10000); })
+    ]);
 
-  btn.disabled = false; btn.textContent = 'Continue to Payment';
+    console.log('clever-service response:', JSON.stringify(r));
+    btn.disabled = false; btn.textContent = 'Continue to Payment';
 
-  if (r.error || !r.data || !r.data.url) {
-    toast('Error starting checkout: ' + (r.data && r.data.error ? r.data.error.message : 'Unknown error'), 'error');
-    return;
+    if (r.error) { toast('Function error: ' + JSON.stringify(r.error), 'error'); return; }
+    if (!r.data || !r.data.url) { toast('No checkout URL returned: ' + JSON.stringify(r.data), 'error'); return; }
+    window.location.href = r.data.url;
+  } catch(err) {
+    btn.disabled = false; btn.textContent = 'Continue to Payment';
+    console.error('Checkout error:', err);
+    toast('Error: ' + err.message, 'error');
   }
-
-  // Redirect to Stripe checkout
-  window.location.href = r.data.url;
 }
 
 async function checkPaymentReturn() {
