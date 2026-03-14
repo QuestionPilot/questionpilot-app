@@ -360,6 +360,7 @@
           <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Buyers</button>
           <button class="btn-sm btn-ghost" id="deal-tab-add-q" onclick="setDealTab('add-q')">+ Add Question</button>
           <button class="btn-sm btn-ghost" id="deal-tab-import" onclick="setDealTab('import')">&#8679; Import</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-audit" onclick="setDealTab('audit')">&#128221; Audit Log</button>
           <button class="btn-sm btn-ghost" id="deal-tab-export" onclick="exportTracker()" style="margin-left:auto">&#8681; Export</button>
         </div>
         <div id="deal-tab-content-tracker">
@@ -404,6 +405,17 @@
         <div id="deal-tab-content-buyers" style="display:none">
           <div class="buyers-list" id="buyers-list"></div>
           <div class="add-buyer-form"><h4>Add a Buyer</h4><div class="inline-form"><input class="form-input" type="text" id="new-buyer-name" placeholder="Buyer / Firm Name"/><input class="form-input" type="email" id="new-buyer-email" placeholder="contact@buyerfirm.com (optional)"/><button class="btn-add" onclick="addBuyer()">Add Buyer</button></div></div>
+        </div>
+        <!-- AUDIT LOG TAB -->
+        <div id="deal-tab-content-audit" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div>
+              <div style="font-size:.95rem;font-weight:700;color:var(--ink);margin-bottom:.2rem">Audit Log</div>
+              <div style="font-size:.78rem;color:var(--ink-soft)">Complete timestamped record of all activity on this deal.</div>
+            </div>
+            <button class="btn-sm btn-ghost" onclick="downloadAuditLog()" style="border:1px solid var(--rule-mid)">&#8681; Download CSV</button>
+          </div>
+          <div id="audit-log-list"><div class="loading-row">Loading...</div></div>
         </div>
         <div id="deal-tab-content-add-q" style="display:none">
           <div class="modal" style="max-width:600px">
@@ -916,7 +928,9 @@ async function createDeal(){
   btn.disabled=false; btn.textContent='Create Deal';
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   closeModal('modal-new-deal'); document.getElementById('new-deal-name').value='';
-  toast('Deal created!','success'); openDeal(r.data.id,r.data.name);
+  toast('Deal created!','success');
+  await logAudit('Deal created: ' + r.data.name, null);
+  openDeal(r.data.id,r.data.name);
 }
 
 async function openDeal(dealId,dealName){
@@ -1085,7 +1099,16 @@ async function saveInlineField(qId, field, value, row, cell, display, input){
   var update = {}; update[field] = value; update.updated_at = new Date().toISOString();
   var r = await db.from('questions').update(update).eq('id', qId);
   if(r.error){ toast('Save failed: '+r.error.message, 'error'); }
-  else { toast('Saved', 'success'); }
+  else {
+    toast('Saved', 'success');
+    var q = allQuestions.find(function(q){return q.id===qId;});
+    var label = field === 'status' ? 'Status changed to ' + value :
+                field === 'question_text' ? 'Question edited' :
+                field === 'category' ? 'Category changed to ' + value :
+                'Field updated (' + field + ')';
+    var qRef = q ? (' · ' + (q.question_text||'').substring(0,40) + (q.question_number ? ' · Q'+q.question_number : '')) : '';
+    await logAudit(label + qRef, qId);
+  }
   // Refresh the cell display
   cancelInlineEdit(row, cell, display, input);
   // Re-render to reflect category grouping changes if category/buyer changed
@@ -1144,13 +1167,17 @@ async function addBuyer(){
   var r=await db.from('buyers').insert({deal_id:currentDeal.id,name,email});
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   document.getElementById('new-buyer-name').value=''; document.getElementById('new-buyer-email').value='';
-  toast('Buyer added!','success'); await loadDealData();
+  toast('Buyer added!','success');
+  await logAudit('Buyer added: ' + name + (email ? ' (' + email + ')' : ''), null);
+  await loadDealData();
 }
 
 async function deleteBuyer(buyerId){
   if(!confirm('Remove this buyer? Their questions will remain in the tracker.')) return;
   var r=await db.from('buyers').delete().eq('id',buyerId);
   if(r.error){toast('Error: '+r.error.message,'error');return;}
+  var removedBuyer = allBuyers.find(function(b){return b.id===buyerId;});
+  await logAudit('Buyer removed: ' + (removedBuyer ? removedBuyer.name : buyerId), null);
   toast('Buyer removed.','success'); await loadDealData();
 }
 
@@ -1188,7 +1215,9 @@ async function addQuestion(){
   var r=await db.from('questions').insert({deal_id:currentDeal.id,buyer_id,category,question_number,question_text,vdr_reference,status:'open'});
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   document.getElementById('new-q-text').value=''; document.getElementById('new-q-num').value=''; document.getElementById('new-q-vdr').value='';
-  toast('Question added!','success'); setDealTab('tracker'); await loadDealData();
+  toast('Question added!','success');
+  await logAudit('Question added: ' + question_text.substring(0,60) + (question_text.length > 60 ? '...' : '') + ' · ' + category + (question_number ? ' · Q' + question_number : ''), null);
+  setDealTab('tracker'); await loadDealData();
 }
 
 // ── QUESTION DETAIL PANEL ─────────────────────────────────────────────────────
@@ -1259,6 +1288,7 @@ async function saveEditedQuestion(){
   // Update local
   currentQuestion.question_text=newText; currentQuestion.category=newCat;
   currentQuestion.question_number=newNum; currentQuestion.vdr_reference=newVdr; currentQuestion.buyer_id=newBuyer;
+  await logAudit('Question edited: ' + newText.substring(0,60) + (newText.length > 60 ? '...' : '') + (newNum ? ' · Q'+newNum : '') + ' · ' + newCat, currentQuestion.id);
   // Refresh header display
   document.getElementById('detail-meta').innerHTML='<span class="cp '+buyerColor(currentQuestion.buyer_id)+'">'+buyerName(currentQuestion.buyer_id)+'</span> <span class="cat-badge">'+(currentQuestion.category||'')+'</span> <span class="qnum">'+(currentQuestion.question_number||'')+'</span> '+statusBadge(currentQuestion.status);
   document.getElementById('detail-q-text').textContent=currentQuestion.question_text;
@@ -1272,6 +1302,7 @@ async function deleteQuestion(){
   if(!confirm('Delete this question and all its messages? This cannot be undone.')) return;
   var r=await db.from('questions').delete().eq('id',currentQuestion.id);
   if(r.error){toast('Error: '+r.error.message,'error');return;}
+  await logAudit('Question deleted: ' + currentQuestion.question_text.substring(0,60) + ' · ' + (currentQuestion.category||'') + (currentQuestion.question_number ? ' · Q'+currentQuestion.question_number : ''), currentQuestion.id);
   toast('Question deleted.','success'); closeDetail(); await loadDealData();
 }
 
@@ -1311,6 +1342,7 @@ async function saveQuestion(){
   if(!currentQuestion) return;
   var r=await db.from('questions').update({status:document.getElementById('detail-status').value,updated_at:new Date().toISOString()}).eq('id',currentQuestion.id);
   if(r.error){toast('Error saving.','error');return;}
+  await logAudit('Status changed to ' + document.getElementById('detail-status').value + ' · ' + (currentQuestion.question_text||'').substring(0,50) + (currentQuestion.question_number ? ' · Q'+currentQuestion.question_number : ''), currentQuestion.id);
   toast('Saved!','success'); closeDetail(); await loadDealData();
 }
 
@@ -1327,6 +1359,7 @@ document.getElementById('btn-add-comment').addEventListener('click', async funct
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   document.getElementById('detail-internal').value='';
   await loadThreads(currentQuestion.id,true);
+  await logAudit('Internal note added · ' + (currentQuestion.question_text||'').substring(0,50) + (currentQuestion.question_number ? ' · Q'+currentQuestion.question_number : ''), currentQuestion.id);
   await createNotification('New internal note on '+currentDeal.name);
 });
 
@@ -1342,7 +1375,9 @@ document.getElementById('btn-post-response').addEventListener('click', async fun
   btn.disabled=false; btn.textContent='Post Response';
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   document.getElementById('detail-response').value='';
-  toast('Response posted!','success'); await loadThreads(currentQuestion.id,true); await loadDealData();
+  toast('Response posted!','success');
+  await logAudit('Response posted · ' + (currentQuestion.question_text||'').substring(0,50) + (currentQuestion.question_number ? ' · Q'+currentQuestion.question_number : ''), currentQuestion.id);
+  await loadThreads(currentQuestion.id,true); await loadDealData();
 });
 
 async function deleteMessage(messageId){
@@ -1353,7 +1388,7 @@ async function deleteMessage(messageId){
 }
 
 function setDealTab(tab){
-  ['tracker','buyers','add-q','import'].forEach(function(t){
+  ['tracker','buyers','add-q','import','audit'].forEach(function(t){
     var el=document.getElementById('deal-tab-content-'+t); if(el) el.style.display=t===tab?'block':'none';
     var btn=document.getElementById('deal-tab-'+t); if(btn) btn.className='btn-sm '+(t===tab?'btn-teal':'btn-ghost');
   });
@@ -1362,6 +1397,7 @@ function setDealTab(tab){
     allBuyers.forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
     sel.innerHTML=opts||'<option value="">No buyers — add one first</option>';
   }
+  if(tab==='audit'){ loadAuditLog(); }
 }
 
 function setPortalView(v){
@@ -1415,7 +1451,86 @@ function toast(msg,type){
   clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove('show');},3000);
 }
 
-// ── AI IMPORT ─────────────────────────────────────────────────────────────────
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+var auditLogCache = [];
+
+async function logAudit(action, questionId) {
+  if (!currentDeal || !currentUser) return;
+  try {
+    await db.from('audit_log').insert({
+      deal_id: currentDeal.id,
+      question_id: questionId || null,
+      action: action,
+      performed_by: currentUser.id
+    });
+  } catch(e) { console.warn('Audit log write failed:', e); }
+}
+
+async function loadAuditLog() {
+  if (!currentDeal) return;
+  var el = document.getElementById('audit-log-list');
+  el.innerHTML = '<div class="loading-row">Loading...</div>';
+  var r = await db.from('audit_log')
+    .select('*')
+    .eq('deal_id', currentDeal.id)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  auditLogCache = r.data || [];
+  if (!auditLogCache.length) {
+    el.innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:3rem;text-align:center;color:var(--ink-faint);font-size:.85rem">No activity recorded yet. Events will appear here as the deal progresses.</div>';
+    return;
+  }
+  // Action type → icon + color
+  var actionMeta = function(action) {
+    if (action.indexOf('Question added') === 0)     return { icon:'＋', color:'#059669', bg:'#f0fdf4' };
+    if (action.indexOf('Question deleted') === 0)   return { icon:'✕', color:'#dc2626', bg:'#fef2f2' };
+    if (action.indexOf('Question edited') === 0)    return { icon:'✎', color:'#2563eb', bg:'#eff6ff' };
+    if (action.indexOf('Status changed') === 0)     return { icon:'◉', color:'#7c3aed', bg:'#f5f3ff' };
+    if (action.indexOf('Response posted') === 0)    return { icon:'↩', color:'#059669', bg:'#f0fdf4' };
+    if (action.indexOf('Internal note') === 0)      return { icon:'🔒', color:'#a87c2a', bg:'#fffbeb' };
+    if (action.indexOf('Buyer added') === 0)        return { icon:'＋', color:'#2a5c59', bg:'rgba(42,92,89,.07)' };
+    if (action.indexOf('Buyer removed') === 0)      return { icon:'✕', color:'#dc2626', bg:'#fef2f2' };
+    if (action.indexOf('Deal created') === 0)       return { icon:'★', color:'#2a5c59', bg:'rgba(42,92,89,.07)' };
+    if (action.indexOf('Imported') === 0)           return { icon:'↑', color:'#2563eb', bg:'#eff6ff' };
+    return { icon:'·', color:'var(--ink-soft)', bg:'var(--bg)' };
+  };
+  var html = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;overflow:hidden">';
+  auditLogCache.forEach(function(entry, i) {
+    var d = new Date(entry.created_at);
+    var dateStr = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    var timeStr = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', second:'2-digit' });
+    var meta = actionMeta(entry.action);
+    var border = i > 0 ? 'border-top:1px solid var(--rule);' : '';
+    html += '<div style="display:flex;align-items:flex-start;gap:1rem;padding:.85rem 1.25rem;'+border+'">';
+    html += '<div style="width:28px;height:28px;border-radius:6px;background:'+meta.bg+';color:'+meta.color+';display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;margin-top:.1rem;font-weight:700">'+meta.icon+'</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:.855rem;color:var(--ink);line-height:1.4">'+entry.action+'</div>';
+    html += '<div style="font-size:.7rem;color:var(--ink-faint);margin-top:.25rem">'+dateStr+' at '+timeStr+'</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function downloadAuditLog() {
+  if (!auditLogCache.length) { toast('No audit events to download.'); return; }
+  var rows = [['Timestamp', 'Action', 'Deal ID', 'Question ID', 'Performed By']];
+  auditLogCache.forEach(function(e) {
+    rows.push([
+      new Date(e.created_at).toLocaleString(),
+      e.action,
+      e.deal_id || '',
+      e.question_id || '',
+      e.performed_by || ''
+    ]);
+  });
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:22},{wch:70},{wch:38},{wch:38},{wch:38}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Audit Log');
+  XLSX.writeFile(wb, (currentDeal ? currentDeal.name.replace(/[^a-z0-9]/gi,'-') : 'deal') + '-audit-log.xlsx');
+  toast('Audit log downloaded!', 'success');
+}
 var importedRows=[];
 
 function handleImportDrop(event){event.preventDefault();document.getElementById('import-drop-zone').style.borderColor='var(--rule-mid)';var file=event.dataTransfer.files[0];if(file)processImportFile(file);}
@@ -1500,6 +1615,7 @@ async function confirmImport(){
   }
   btn.disabled=false; btn.textContent='Import All';
   importedRows=[]; document.getElementById('import-preview').style.display='none';
+  await logAudit('Imported ' + toImport.length + ' questions from file', null);
   toast(toImport.length+' questions imported!','success'); setDealTab('tracker'); await loadDealData();
 }
 
