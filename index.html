@@ -321,7 +321,7 @@
       <div class="view active" id="view-dashboard">
         <div class="stat-row">
           <div class="stat-card"><div class="stat-label">Active Deals</div><div class="stat-value" id="stat-deals">0</div><div class="stat-sub">In progress</div></div>
-          <div class="stat-card"><div class="stat-label">Total Buyers</div><div class="stat-value" id="stat-buyers">0</div><div class="stat-sub">Across all deals</div></div>
+          <div class="stat-card"><div class="stat-label">Total Counterparties</div><div class="stat-value" id="stat-buyers">0</div><div class="stat-sub">Across all deals</div></div>
           <div class="stat-card"><div class="stat-label">Open Questions</div><div class="stat-value" id="stat-open">0</div><div class="stat-sub">Awaiting response</div></div>
           <div class="stat-card"><div class="stat-label">Published</div><div class="stat-value" id="stat-pub">0</div><div class="stat-sub">Responses live</div></div>
         </div>
@@ -357,7 +357,7 @@
         </div>
         <div style="display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--rule);padding-bottom:.75rem">
           <button class="btn-sm btn-teal" id="deal-tab-tracker" onclick="setDealTab('tracker')">Tracker</button>
-          <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Buyers</button>
+          <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Counterparties &amp; Clients</button>
           <button class="btn-sm btn-ghost" id="deal-tab-add-q" onclick="setDealTab('add-q')">+ Add Question</button>
           <button class="btn-sm btn-ghost" id="deal-tab-import" onclick="setDealTab('import')">&#8679; Import</button>
           <button class="btn-sm btn-ghost" id="deal-tab-audit" onclick="setDealTab('audit')">&#128221; Audit Log</button>
@@ -403,8 +403,29 @@
           </div>
         </div>
         <div id="deal-tab-content-buyers" style="display:none">
+          <!-- COUNTERPARTIES -->
+          <div style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:.75rem;letter-spacing:.02em">Counterparties</div>
           <div class="buyers-list" id="buyers-list"></div>
-          <div class="add-buyer-form"><h4>Add a Buyer</h4><div class="inline-form"><input class="form-input" type="text" id="new-buyer-name" placeholder="Buyer / Firm Name"/><input class="form-input" type="email" id="new-buyer-email" placeholder="contact@buyerfirm.com (optional)"/><button class="btn-add" onclick="addBuyer()">Add Buyer</button></div></div>
+          <div class="add-buyer-form" style="margin-bottom:2rem">
+            <h4>Add a Counterparty</h4>
+            <div class="inline-form">
+              <input class="form-input" type="text" id="new-buyer-name" placeholder="Firm / Party Name"/>
+              <input class="form-input" type="email" id="new-buyer-email" placeholder="contact@firm.com (optional)"/>
+              <button class="btn-add" onclick="addBuyer('counterparty')">Add</button>
+            </div>
+          </div>
+          <!-- CLIENTS -->
+          <div style="font-size:.82rem;font-weight:700;color:var(--ink);margin-bottom:.75rem;letter-spacing:.02em">Clients</div>
+          <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:1rem;line-height:1.5;">Clients can view all questions and submit draft responses. They cannot see counterparty names, internal notes, or publish anything.</div>
+          <div class="buyers-list" id="clients-list"></div>
+          <div class="add-buyer-form">
+            <h4>Add a Client</h4>
+            <div class="inline-form">
+              <input class="form-input" type="text" id="new-client-name" placeholder="Client / Seller Name"/>
+              <input class="form-input" type="email" id="new-client-email" placeholder="contact@client.com (optional)"/>
+              <button class="btn-add" onclick="addBuyer('client')">Add</button>
+            </div>
+          </div>
         </div>
         <!-- AUDIT LOG TAB -->
         <div id="deal-tab-content-audit" style="display:none">
@@ -894,7 +915,7 @@ function renderDealCards(containerId,deals){
     html+='<div class="deal-card-top"><div><div class="deal-name">'+d.name+'</div><div class="deal-date">'+new Date(d.created_at).toLocaleDateString()+'</div></div>';
     html+='<div style="display:flex;align-items:center;gap:.5rem"><span class="deal-badge" style="background:'+(isActive?'#d1fae5':'#f3f4f6')+';color:'+(isActive?'#065f46':'#6b7280')+'">'+(isActive?'Active':'Closed')+'</span>';
     html+='<button class="deal-toggle-btn" data-did="'+d.id+'" data-dstatus="'+d.status+'" style="font-size:.62rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;border:1px solid var(--rule-mid);background:transparent;color:var(--ink-soft);cursor:pointer">'+(isActive?'Close':'Reopen')+'</button></div></div>';
-    html+='<div class="deal-stats"><span class="deal-stat"><strong id="dsb-'+d.id+'">-</strong> buyers</span><span class="deal-stat"><strong id="dsq-'+d.id+'">-</strong> questions</span></div></div>';
+    html+='<div class="deal-stats"><span class="deal-stat"><strong id="dsb-'+d.id+'">-</strong> counterpart.</span><span class="deal-stat"><strong id="dsq-'+d.id+'">-</strong> questions</span></div></div>';
   });
   html+='</div>'; el.innerHTML=html;
   el.querySelectorAll('.deal-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();toggleDealStatus(btn.dataset.did,btn.dataset.dstatus);});});
@@ -947,7 +968,8 @@ async function loadDealData(){
   var r1=await db.from('buyers').select('*').eq('deal_id',currentDeal.id); allBuyers=r1.data||[];
   var r2=await db.from('questions').select('*').eq('deal_id',currentDeal.id).order('created_at',{ascending:true}); allQuestions=r2.data||[];
   var r3=await db.from('deal_categories').select('*').eq('deal_id',currentDeal.id).order('name'); dealCategories=(r3.data||[]).map(function(c){return c.name;});
-  document.getElementById('deal-detail-meta').textContent=allBuyers.length+' buyer'+(allBuyers.length!==1?'s':'')+' \u00b7 '+allQuestions.length+' questions';
+  var counterparties = allBuyers.filter(function(b){return b.role !== 'client';});
+  document.getElementById('deal-detail-meta').textContent=counterparties.length+' counterpart'+(counterparties.length!==1?'ies':'y')+' \u00b7 '+allQuestions.length+' questions';
   renderTrackerStats(); renderQuestions(); renderBuyers(); populateBuyerDropdowns(); populateCategoryDropdown();
 }
 
@@ -998,7 +1020,7 @@ function renderQuestions(){
       catQs.forEach(function(q){
         var allCatOpts = defaultCategories.concat(dealCategories.filter(function(c){return !defaultCategories.includes(c);}));
         var catOptions = allCatOpts.map(function(c){return '<option value="'+c+'"'+(c===q.category?' selected':'')+'>'+c+'</option>';}).join('');
-        var buyerOptions = allBuyers.map(function(b){return '<option value="'+b.id+'"'+(b.id===q.buyer_id?' selected':'')+'>'+b.name+'</option>';}).join('');
+        var buyerOptions = allBuyers.filter(function(b){return b.role!=='client';}).map(function(b){return '<option value="'+b.id+'"'+(b.id===q.buyer_id?' selected':'')+'>'+b.name+'</option>';}).join('');
         var statusOptions = ['open','in_review','draft','published'].map(function(s){var labels={open:'Open',in_review:'In Review',draft:'Draft',published:'Published'};return '<option value="'+s+'"'+(s===q.status?' selected':'')+'>'+labels[s]+'</option>';}).join('');
         html+='<tr data-qid="'+q.id+'" class="q-row">';
         // Buyer (inline select)
@@ -1053,7 +1075,7 @@ function renderQuestions(){
         e.stopPropagation();
         // Populate buyer select dynamically
         if(input.dataset.field==='buyer_id'){
-          input.innerHTML=allBuyers.map(function(b){var q=allQuestions.find(function(q){return q.id===qId;});return '<option value="'+b.id+'"'+(b.id===(q?q.buyer_id:'')?' selected':'')+'>'+b.name+'</option>';}).join('');
+          input.innerHTML=allBuyers.filter(function(b){return b.role!=='client';}).map(function(b){var q=allQuestions.find(function(q){return q.id===qId;});return '<option value="'+b.id+'"'+(b.id===(q?q.buyer_id:'')?' selected':'')+'>'+b.name+'</option>';}).join('');
         }
         display.style.display='none';
         input.style.display='';
@@ -1137,48 +1159,68 @@ function cancelInlineEdit(row, cell, display, input){
 }
 
 function renderBuyers(){
-  var el=document.getElementById('buyers-list');
-  if(!allBuyers.length){el.innerHTML='<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>';return;}
-  var html='';
-  allBuyers.forEach(function(b){
-    html+='<div class="buyer-row"><div><div class="buyer-name">'+b.name+'</div><div class="buyer-email">'+(b.email||'No email set')+'</div></div>';
-    html+='<div style="display:flex;gap:.5rem;align-items:center"><a class="buyer-link" href="#" data-token="'+b.access_token+'" onclick="event.preventDefault();copyBuyerLink(this.dataset.token)">Copy Portal Link</a>';
-    html+='<button data-bid="'+b.id+'" class="del-buyer-btn" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:4px" title="Remove buyer">&#10005;</button></div></div>';
-  });
-  el.innerHTML=html;
-  el.querySelectorAll('.del-buyer-btn').forEach(function(btn){btn.addEventListener('click',function(){deleteBuyer(btn.dataset.bid);});});
+  var counterparties=allBuyers.filter(function(b){return b.role!=='client';});
+  var clients=allBuyers.filter(function(b){return b.role==='client';});
+
+  function renderList(list, containerId, emptyMsg) {
+    var el=document.getElementById(containerId); if(!el) return;
+    if(!list.length){el.innerHTML='<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0 1rem">'+emptyMsg+'</div>';return;}
+    var html='';
+    list.forEach(function(b){
+      html+='<div class="buyer-row"><div><div class="buyer-name">'+b.name+'</div><div class="buyer-email">'+(b.email||'No email set')+'</div></div>';
+      html+='<div style="display:flex;gap:.5rem;align-items:center">';
+      var tokenParam = b.role==='client' ? 'client' : 'buyer';
+      html+='<a class="buyer-link" href="#" data-token="'+b.access_token+'" data-param="'+tokenParam+'" onclick="event.preventDefault();copyPortalLink(this.dataset.token,this.dataset.param)">Copy Link</a>';
+      html+='<button data-bid="'+b.id+'" class="del-buyer-btn" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:4px" title="Remove">&#10005;</button>';
+      html+='</div></div>';
+    });
+    el.innerHTML=html;
+    el.querySelectorAll('.del-buyer-btn').forEach(function(btn){btn.addEventListener('click',function(){deleteBuyer(btn.dataset.bid);});});
+  }
+
+  renderList(counterparties, 'buyers-list', 'No counterparties added yet.');
+  renderList(clients, 'clients-list', 'No clients added yet.');
 }
 
 function copyBuyerLink(token){var link=window.location.origin+window.location.pathname+'?buyer='+token;navigator.clipboard.writeText(link).then(function(){toast('Portal link copied!','success');});}
 
 function populateBuyerDropdowns(){
   var sel=document.getElementById('new-q-buyer'), fSel=document.getElementById('q-filter-buyer');
+  var counterparties=allBuyers.filter(function(b){return b.role!=='client';});
   var opts='';
-  allBuyers.forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
-  sel.innerHTML=opts; fSel.innerHTML='<option value="">All Buyers</option>'+opts;
-  // Also populate edit buyer dropdown
+  counterparties.forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
+  sel.innerHTML=opts; fSel.innerHTML='<option value="">All Counterparties</option>'+opts;
   var editSel=document.getElementById('edit-q-buyer');
   if(editSel) editSel.innerHTML=opts;
 }
 
-async function addBuyer(){
-  var name=document.getElementById('new-buyer-name').value.trim(), email=document.getElementById('new-buyer-email').value.trim();
-  if(!name){toast('Buyer name required.','error');return;}
-  var r=await db.from('buyers').insert({deal_id:currentDeal.id,name,email});
+function copyPortalLink(token, param){
+  var link=window.location.origin+window.location.pathname+'?'+param+'='+token;
+  navigator.clipboard.writeText(link).then(function(){toast('Portal link copied!','success');});
+}
+
+async function addBuyer(role){
+  role = role || 'counterparty';
+  var nameId = role==='client' ? 'new-client-name' : 'new-buyer-name';
+  var emailId = role==='client' ? 'new-client-email' : 'new-buyer-email';
+  var name=document.getElementById(nameId).value.trim(), email=document.getElementById(emailId).value.trim();
+  if(!name){toast((role==='client'?'Client':'Counterparty')+' name required.','error');return;}
+  var r=await db.from('buyers').insert({deal_id:currentDeal.id,name,email,role});
   if(r.error){toast('Error: '+r.error.message,'error');return;}
-  document.getElementById('new-buyer-name').value=''; document.getElementById('new-buyer-email').value='';
-  toast('Buyer added!','success');
-  await logAudit('Buyer added: ' + name + (email ? ' (' + email + ')' : ''), null);
+  document.getElementById(nameId).value=''; document.getElementById(emailId).value='';
+  toast((role==='client'?'Client':'Counterparty')+' added!','success');
+  await logAudit((role==='client'?'Client':'Counterparty')+' added: '+name+(email?' ('+email+')':''), null);
   await loadDealData();
 }
 
 async function deleteBuyer(buyerId){
-  if(!confirm('Remove this buyer? Their questions will remain in the tracker.')) return;
+  if(!confirm('Remove this person? Their questions will remain in the tracker.')) return;
+  var removedBuyer = allBuyers.find(function(b){return b.id===buyerId;});
   var r=await db.from('buyers').delete().eq('id',buyerId);
   if(r.error){toast('Error: '+r.error.message,'error');return;}
-  var removedBuyer = allBuyers.find(function(b){return b.id===buyerId;});
-  await logAudit('Buyer removed: ' + (removedBuyer ? removedBuyer.name : buyerId), null);
-  toast('Buyer removed.','success'); await loadDealData();
+  var roleLabel = removedBuyer && removedBuyer.role==='client' ? 'Client' : 'Counterparty';
+  await logAudit(roleLabel+' removed: ' + (removedBuyer ? removedBuyer.name : buyerId), null);
+  toast('Removed.','success'); await loadDealData();
 }
 
 var defaultCategories=['Financial','Legal','Operations','HR','Tax','IT','Commercial','Other'];
@@ -1322,13 +1364,18 @@ function renderThread(containerId,messages,isInternal){
   messages.forEach(function(m){
     var d=new Date(m.created_at);
     var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var isClientDraft=m.author_type==='client';
     var isBuyer=m.author_type==='buyer';
     var bg=isInternal?'#fffbeb':'#f0fdf4', border=isInternal?'#fde68a':'#86efac', nameColor=isInternal?'#a87c2a':'#065f46';
     if(isBuyer){bg='#eff6ff';border='#bfdbfe';nameColor='#1e40af';}
+    if(isClientDraft){bg='#fdf4ff';border='#e9d5ff';nameColor='#7c3aed';}
+    var displayName = isClientDraft ? m.author_name+' (Client Draft)' : m.author_name;
     html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.65rem .85rem;position:relative">';
     html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between;align-items:center">';
-    html+='<span>'+m.author_name+'</span><span style="font-weight:400;color:var(--ink-faint)">'+dateStr+' &middot; '+timeStr+'</span></div>';
-    html+='<div style="font-size:.82rem;color:var(--ink);line-height:1.5">'+m.message_text.replace(/\n/g,'<br>')+'</div>';
+    html+='<span>'+displayName+'</span><span style="font-weight:400;color:var(--ink-faint)">'+dateStr+' &middot; '+timeStr+'</span></div>';
+    // Strip the [Client Draft] prefix for display
+    var displayText=m.message_text.replace(/^\[Client Draft\] /,'');
+    html+='<div style="font-size:.82rem;color:var(--ink);line-height:1.5">'+displayText.replace(/\n/g,'<br>')+'</div>';
     if(portalView==='advisor'){html+='<button class="del-msg-btn" data-mid="'+m.id+'" style="position:absolute;top:.4rem;right:.4rem;background:none;border:none;color:#d1d5db;cursor:pointer;font-size:.7rem;padding:.1rem .3rem;border-radius:3px" title="Delete">&#10005;</button>';}
     html+='</div>';
   });
@@ -1394,8 +1441,8 @@ function setDealTab(tab){
   });
   if(tab==='import'){
     var sel=document.getElementById('import-buyer-sel'), opts='';
-    allBuyers.forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
-    sel.innerHTML=opts||'<option value="">No buyers — add one first</option>';
+    allBuyers.filter(function(b){return b.role!=='client';}).forEach(function(b){opts+='<option value="'+b.id+'">'+b.name+'</option>';});
+    sel.innerHTML=opts||'<option value="">No counterparties — add one first</option>';
   }
   if(tab==='audit'){ loadAuditLog(); }
 }
@@ -1679,17 +1726,163 @@ async function checkPaymentReturn(){
 }
 
 // ── BUYER PORTAL ──────────────────────────────────────────────────────────────
-function checkBuyerPortal(){var params=new URLSearchParams(window.location.search);var token=params.get('buyer');if(token){document.getElementById('screen-auth').style.display='none';loadBuyerPortal(token);return true;}return false;}
+// ── PORTALS ───────────────────────────────────────────────────────────────────
+function checkBuyerPortal(){
+  var params=new URLSearchParams(window.location.search);
+  var buyerToken=params.get('buyer');
+  var clientToken=params.get('client');
+  if(buyerToken){document.getElementById('screen-auth').style.display='none';loadPortal(buyerToken,'counterparty');return true;}
+  if(clientToken){document.getElementById('screen-auth').style.display='none';loadPortal(clientToken,'client');return true;}
+  return false;
+}
 
-async function loadBuyerPortal(token){
-  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading your portal...</div>';
+// Shared portal shell builder
+function buildPortalShell(dealName, personName, content){
+  return '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif">' +
+    '<div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between">' +
+    '<div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div>' +
+    '<div style="font-size:.78rem;color:rgba(255,255,255,.55)">'+dealName+'</div>' +
+    '</div>' +
+    '<div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem">' + content + '</div></div>';
+}
+
+// Profile edit section for portals
+function buildProfileSection(token, paramName, currentName, currentEmail){
+  return '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1.75rem">' +
+    '<div style="font-size:.78rem;font-weight:700;color:#5e7270;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.85rem">Your Details</div>' +
+    '<div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">' +
+    '<div style="flex:1;min-width:160px"><div style="font-size:.72rem;font-weight:600;color:#374140;margin-bottom:.3rem">Name</div>' +
+    '<input id="portal-name" type="text" value="'+currentName+'" style="width:100%;padding:.6rem .8rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.85rem;color:#141f1e;outline:none"/></div>' +
+    '<div style="flex:1;min-width:160px"><div style="font-size:.72rem;font-weight:600;color:#374140;margin-bottom:.3rem">Email</div>' +
+    '<input id="portal-email" type="email" value="'+(currentEmail||'')+'" placeholder="your@email.com" style="width:100%;padding:.6rem .8rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.85rem;color:#141f1e;outline:none"/></div>' +
+    '<button onclick="savePortalProfile(\''+token+'\',\''+paramName+'\')" style="padding:.65rem 1.25rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;white-space:nowrap">Save</button>' +
+    '</div>' +
+    '<div id="portal-profile-msg" style="font-size:.75rem;margin-top:.5rem;display:none"></div>' +
+    '</div>';
+}
+
+async function savePortalProfile(token, paramName){
+  var name=document.getElementById('portal-name').value.trim();
+  var email=document.getElementById('portal-email').value.trim();
+  var msg=document.getElementById('portal-profile-msg');
+  if(!name){msg.textContent='Name cannot be empty.';msg.style.color='#dc2626';msg.style.display='block';return;}
+  var r=await db.from('buyers').update({name,email}).eq('access_token',token);
+  if(r.error){msg.textContent='Error: '+r.error.message;msg.style.color='#dc2626';msg.style.display='block';return;}
+  msg.textContent='Details saved.';msg.style.color='#059669';msg.style.display='block';
+  setTimeout(function(){msg.style.display='none';},3000);
+}
+
+// ── COUNTERPARTY PORTAL ───────────────────────────────────────────────────────
+async function loadPortal(token, portalType){
+  portalType = portalType || 'counterparty';
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading...</div>';
   var r=await db.from('buyers').select('*, deals(*)').eq('access_token',token).single();
-  if(r.error||!r.data){document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>';return;}
+  if(r.error||!r.data){
+    document.body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new link.</div></div>';
+    return;
+  }
   portalBuyer=r.data;
-  var r2=await db.from('questions').select('*').eq('deal_id',r.data.deal_id).eq('buyer_id',r.data.id).order('created_at',{ascending:true});
-  var qs=r2.data||[];
-  document.body.innerHTML='<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif"><div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between"><div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div><div style="font-size:.78rem;color:rgba(255,255,255,.55)">'+r.data.deals.name+' \u2014 '+r.data.name+'</div></div><div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem"><h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">'+r.data.deals.name+'</h1><p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">'+r.data.name+' \u00b7 '+qs.length+' question'+(qs.length!==1?'s':'')+'</p><div id="buyer-questions-list"></div></div></div>';
-  renderBuyerQuestions(qs,r.data);
+  if(portalType==='client'){
+    // Client sees all questions for the deal
+    var r2=await db.from('questions').select('*').eq('deal_id',r.data.deal_id).order('created_at',{ascending:true});
+    var qs=r2.data||[];
+    var profileSection=buildProfileSection(token,'client',r.data.name,r.data.email);
+    var header='<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">'+r.data.deals.name+'</h1>';
+    header+='<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">'+qs.length+' question'+(qs.length!==1?'s':'')+' across all workstreams</p>';
+    document.body.innerHTML=buildPortalShell(r.data.deals.name, r.data.name, profileSection+header+'<div id="client-questions-list"></div>');
+    renderClientQuestions(qs, r.data);
+  } else {
+    // Counterparty sees only their questions
+    var r2=await db.from('questions').select('*').eq('deal_id',r.data.deal_id).eq('buyer_id',r.data.id).order('created_at',{ascending:true});
+    var qs=r2.data||[];
+    var profileSection=buildProfileSection(token,'buyer',r.data.name,r.data.email);
+    var header='<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">'+r.data.deals.name+'</h1>';
+    header+='<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">'+qs.length+' question'+(qs.length!==1?'s':'')+' in your diligence list</p>';
+    document.body.innerHTML=buildPortalShell(r.data.deals.name, r.data.name, profileSection+header+'<div id="buyer-questions-list"></div>');
+    renderBuyerQuestions(qs, r.data);
+  }
+}
+
+// ── CLIENT PORTAL RENDER ──────────────────────────────────────────────────────
+function renderClientQuestions(qs, client){
+  var container=document.getElementById('client-questions-list');
+  if(!qs.length){container.innerHTML='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>';return;}
+  // Group by category
+  var groups={}, groupOrder=[];
+  qs.forEach(function(q){var cat=q.category||'General';if(!groups[cat]){groups[cat]=[];groupOrder.push(cat);}groups[cat].push(q);});
+  var html='';
+  groupOrder.forEach(function(cat){
+    html+='<div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;margin:1.5rem 0 .75rem">'+cat+'</div>';
+    groups[cat].forEach(function(q){
+      html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:.85rem;overflow:hidden">';
+      html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)">';
+      html+='<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
+      if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
+      // Status — show simple label, no role attribution
+      var statusMap={open:'Awaiting Response',in_review:'Under Review',draft:'Draft',published:'Responded'};
+      var statusColor={open:'#1e40af',in_review:'#92400e',draft:'#6b7280',published:'#065f46'};
+      var statusBg={open:'#dbeafe',in_review:'#fef3c7',draft:'#f3f4f6',published:'#d1fae5'};
+      var s=q.status||'open';
+      html+='<span style="font-size:.62rem;font-weight:700;padding:.15rem .5rem;border-radius:100px;background:'+(statusBg[s]||'#f3f4f6')+';color:'+(statusColor[s]||'#6b7280')+'">'+( statusMap[s]||s)+'</span>';
+      html+='</div>';
+      html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div>';
+      if(q.vdr_reference) html+='<div style="font-size:.72rem;color:#8fa5a3;font-family:monospace;margin-top:.3rem">Ref: '+q.vdr_reference+'</div>';
+      html+='</div>';
+      // Response thread (published responses visible to client)
+      html+='<div id="client-thread-'+q.id+'" style="padding:.85rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto;background:#fafbfa"></div>';
+      // Client draft input
+      html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05)">';
+      html+='<div style="font-size:.72rem;font-weight:600;color:#5e7270;margin-bottom:.4rem">Your Draft Response</div>';
+      html+='<div style="display:flex;gap:.5rem">';
+      html+='<textarea id="client-draft-'+q.id+'" placeholder="Draft a response for your advisor..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:44px" rows="2"></textarea>';
+      html+='<button class="client-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Submit</button>';
+      html+='</div>';
+      html+='<div style="font-size:.7rem;color:#8fa5a3;margin-top:.4rem">Your draft is only visible to your advisor until they publish a response.</div>';
+      html+='</div></div>';
+    });
+  });
+  container.innerHTML=html;
+  container.querySelectorAll('.client-send-btn').forEach(function(btn){btn.addEventListener('click',function(){postClientDraft(btn.dataset.qid,client);});});
+  qs.forEach(function(q){loadClientThread(q.id);});
+}
+
+async function loadClientThread(questionId){
+  var r=await db.from('question_messages').select('*').eq('question_id',questionId).eq('is_internal',false).order('created_at',{ascending:true});
+  var el=document.getElementById('client-thread-'+questionId); if(!el) return;
+  var msgs=r.data||[];
+  if(!msgs.length){el.innerHTML='<div style="color:#8fa5a3;font-size:.78rem;font-style:italic;padding:.25rem 0">No responses yet.</div>';return;}
+  var html='';
+  msgs.forEach(function(m){
+    var d=new Date(m.created_at);
+    var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var isAdvisor=m.author_type==='advisor';
+    // Client sees advisor responses as "Response", own messages as "Your message"
+    var label = isAdvisor ? 'Response' : 'Your message';
+    var bg=isAdvisor?'#f0fdf4':'#eff6ff', border=isAdvisor?'#86efac':'#bfdbfe', nameColor=isAdvisor?'#065f46':'#1e40af';
+    html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem">';
+    html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>'+label+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+'</span></div>';
+    html+='<div style="font-size:.82rem;color:#141f1e;line-height:1.5">'+m.message_text.replace(/\n/g,'<br>')+'</div></div>';
+  });
+  el.innerHTML=html; el.scrollTop=el.scrollHeight;
+}
+
+async function postClientDraft(questionId, client){
+  if(!portalBuyer) return;
+  var input=document.getElementById('client-draft-'+questionId);
+  var text=input.value.trim(); if(!text) return;
+  // Store as internal message so only advisor sees it, marked as client type
+  var r=await db.from('question_messages').insert({
+    question_id:questionId, deal_id:portalBuyer.deal_id,
+    author_name:client.name, author_type:'client',
+    buyer_id:client.id, is_internal:true, message_text:'[Client Draft] '+text
+  });
+  if(r.error){alert('Error: '+r.error.message);return;}
+  // Update status to in_review
+  await db.from('questions').update({status:'in_review',updated_at:new Date().toISOString()}).eq('id',questionId);
+  input.value='';
+  // Show confirmation inline
+  var btn=document.querySelector('[data-qid="'+questionId+'"].client-send-btn');
+  if(btn){var orig=btn.textContent;btn.textContent='Sent ✓';btn.style.background='#059669';setTimeout(function(){btn.textContent=orig;btn.style.background='#2a5c59';},2500);}
 }
 
 function renderBuyerQuestions(qs,buyer){
@@ -1698,11 +1891,15 @@ function renderBuyerQuestions(qs,buyer){
   var html='';
   qs.forEach(function(q){
     html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:1rem;overflow:hidden">';
-    html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem"><span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">'+(q.category||'')+'</span><span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+(q.question_number||'')+'</span></div>';
+    html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
+    if(q.category) html+='<span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">'+q.category+'</span>';
+    if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
+    html+='</div>';
     html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div></div>';
     html+='<div id="buyer-thread-'+q.id+'" style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem;max-height:300px;overflow-y:auto;background:#fafbfa"></div>';
-    html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem"><textarea id="buyer-reply-'+q.id+'" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
-    html+='<button class="buyer-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap">Send</button></div></div>';
+    html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem">';
+    html+='<textarea id="buyer-reply-'+q.id+'" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
+    html+='<button class="buyer-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Send</button></div></div>';
   });
   container.innerHTML=html;
   container.querySelectorAll('.buyer-send-btn').forEach(function(btn){btn.addEventListener('click',function(){postBuyerReply(btn.dataset.qid);});});
@@ -1716,9 +1913,13 @@ async function loadBuyerThread(questionId){
   if(!msgs.length){el.innerHTML='<div style="color:#8fa5a3;font-size:.78rem;font-style:italic">No responses yet.</div>';return;}
   var html='';
   msgs.forEach(function(m){
-    var d=new Date(m.created_at), dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-    var isBuyer=m.author_type==='buyer', bg=isBuyer?'#eff6ff':'#f0fdf4', border=isBuyer?'#bfdbfe':'#86efac', nameColor=isBuyer?'#1e40af':'#065f46';
-    html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem"><div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>'+m.author_name+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+' &middot; '+timeStr+'</span></div>';
+    var d=new Date(m.created_at);
+    var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var isAdvisor=m.author_type==='advisor';
+    var label = isAdvisor ? 'Response' : 'Your message';
+    var bg=isAdvisor?'#f0fdf4':'#eff6ff', border=isAdvisor?'#86efac':'#bfdbfe', nameColor=isAdvisor?'#065f46':'#1e40af';
+    html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem">';
+    html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>'+label+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+'</span></div>';
     html+='<div style="font-size:.82rem;color:#141f1e;line-height:1.5">'+m.message_text.replace(/\n/g,'<br>')+'</div></div>';
   });
   el.innerHTML=html; el.scrollTop=el.scrollHeight;
