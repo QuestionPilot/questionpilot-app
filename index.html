@@ -50,11 +50,15 @@
     .nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
     .nav-item.active{background:rgba(110,207,203,.15);color:#6ecfcb}
     .sidebar-footer{padding:1rem .75rem;border-top:1px solid rgba(255,255,255,.07)}
-    .user-chip{display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;border-radius:7px;cursor:pointer;transition:background .15s}
-    .user-chip:hover{background:rgba(255,255,255,.07)}
-    .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;flex-shrink:0}
-    .user-name{font-size:0.85rem;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .user-email{font-size:0.65rem;color:rgba(255,255,255,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* USER CHIP — info only, no sign-out on click */
+    .user-chip{display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;border-radius:7px}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;flex-shrink:0}
+    .user-info{flex:1;min-width:0}
+    .user-name{font-size:0.85rem;font-weight:600;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .user-email-text{font-size:0.65rem;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .signout-btn{display:flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-radius:6px;font-size:0.78rem;font-weight:600;color:rgba(255,255,255,.4);cursor:pointer;transition:all .15s;background:transparent;border:none;font-family:inherit;width:100%;margin-top:.35rem}
+    .signout-btn:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.7)}
 
     /* MAIN */
     .main{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
@@ -268,13 +272,18 @@
       </div>
     </div>
     <div class="sidebar-footer">
-      <div class="user-chip" onclick="handleSignOut()">
+      <!-- USER INFO — display only, no sign-out on click -->
+      <div class="user-chip">
         <div class="user-avatar" id="user-avatar">?</div>
-        <div>
+        <div class="user-info">
           <div class="user-name" id="user-name">Loading...</div>
-          <div class="user-email" id="user-email-display">Sign out</div>
+          <div class="user-email-text" id="user-email-display"></div>
         </div>
       </div>
+      <!-- DEDICATED SIGN OUT BUTTON -->
+      <button class="signout-btn" onclick="handleSignOut()">
+        <span style="font-size:0.85rem">&#8592;</span> Sign out
+      </button>
     </div>
   </div>
 
@@ -285,7 +294,7 @@
       <div class="topbar-actions">
         <div style="position:relative;cursor:pointer" onclick="toggleNotifications()">
           <span style="font-size:1.1rem">&#128276;</span>
-          <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:.55rem;font-weight:700;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center">0</span>
+          <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:.55rem;font-weight:700;border-radius:50%;width:14px;height:14px;align-items:center;justify-content:center">0</span>
         </div>
         <button class="btn-sm btn-teal" id="btn-new-deal" onclick="openNewDealModal()">+ New Deal</button>
       </div>
@@ -309,14 +318,8 @@
           <div class="stat-card"><div class="stat-label">Published</div><div class="stat-value" id="stat-pub">0</div><div class="stat-sub">Responses live</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
-          <div>
-            <div class="section-title">Needs Attention</div>
-            <div id="dashboard-attention"><div class="loading-row">Loading...</div></div>
-          </div>
-          <div>
-            <div class="section-title">Recent Activity</div>
-            <div id="dashboard-activity"><div class="loading-row">Loading...</div></div>
-          </div>
+          <div><div class="section-title">Needs Attention</div><div id="dashboard-attention"><div class="loading-row">Loading...</div></div></div>
+          <div><div class="section-title">Recent Activity</div><div id="dashboard-activity"><div class="loading-row">Loading...</div></div></div>
         </div>
       </div>
 
@@ -328,9 +331,7 @@
             <input type="text" id="deals-search" placeholder="Search deals..." oninput="filterDeals()" style="width:100%;padding:.55rem .85rem .55rem 2.2rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:.82rem;color:var(--ink);background:var(--white);outline:none"/>
           </div>
           <select id="deals-filter-status" onchange="filterDeals()" style="padding:.55rem .85rem;border:1px solid var(--rule-mid);border-radius:7px;font-family:inherit;font-size:.82rem;color:var(--ink);background:var(--white);outline:none;cursor:pointer">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="closed">Closed</option>
+            <option value="">All Status</option><option value="active">Active</option><option value="closed">Closed</option>
           </select>
         </div>
         <div id="all-deals-list"><div class="loading-row">Loading...</div></div>
@@ -340,17 +341,12 @@
       <div class="view" id="view-deal-detail">
         <button class="back-btn" onclick="showView('deals')">&#8592; Back to Deals</button>
         <div class="tracker-header">
-          <div>
-            <h2 id="deal-detail-name">Deal Name</h2>
-            <p id="deal-detail-meta">Loading...</p>
-          </div>
+          <div><h2 id="deal-detail-name">Deal Name</h2><p id="deal-detail-meta">Loading...</p></div>
           <div class="view-toggle">
             <button class="toggle-btn active" id="toggle-advisor" onclick="setPortalView('advisor')">Advisor View</button>
             <button class="toggle-btn" id="toggle-buyer" onclick="setPortalView('buyer')">Buyer View</button>
           </div>
         </div>
-
-        <!-- TABS -->
         <div style="display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--rule);padding-bottom:.75rem">
           <button class="btn-sm btn-teal" id="deal-tab-tracker" onclick="setDealTab('tracker')">Tracker</button>
           <button class="btn-sm btn-ghost" id="deal-tab-buyers" onclick="setDealTab('buyers')">Buyers</button>
@@ -363,28 +359,13 @@
         <div id="deal-tab-content-tracker">
           <div class="tstat-row" id="tracker-stats"></div>
           <div class="tracker-toolbar">
-            <div class="search-wrap">
-              <span class="search-icon">🔍</span>
-              <input type="text" placeholder="Search questions..." id="q-search" oninput="filterQuestions()"/>
-            </div>
-            <select class="filter-sel" id="q-filter-status" onchange="filterQuestions()">
-              <option value="">All Statuses</option>
-              <option value="open">Open</option>
-              <option value="in_review">In Review</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-            </select>
-            <select class="filter-sel" id="q-filter-buyer" onchange="filterQuestions()">
-              <option value="">All Buyers</option>
-            </select>
+            <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Search questions..." id="q-search" oninput="filterQuestions()"/></div>
+            <select class="filter-sel" id="q-filter-status" onchange="filterQuestions()"><option value="">All Statuses</option><option value="open">Open</option><option value="in_review">In Review</option><option value="draft">Draft</option><option value="published">Published</option></select>
+            <select class="filter-sel" id="q-filter-buyer" onchange="filterQuestions()"><option value="">All Buyers</option></select>
           </div>
           <div class="table-wrap">
             <table class="tbl">
-              <thead>
-                <tr id="tbl-head-advisor">
-                  <th>Counterparty</th><th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th><th>Status</th>
-                </tr>
-              </thead>
+              <thead><tr id="tbl-head-advisor"><th>Counterparty</th><th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th><th>Status</th></tr></thead>
               <tbody id="questions-tbody"></tbody>
             </table>
           </div>
@@ -407,32 +388,19 @@
                 <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)"/>
               </div>
               <div id="import-status" style="margin-top:1rem;display:none">
-                <div style="display:flex;align-items:center;gap:.75rem;padding:1rem;background:var(--teal-bg,rgba(42,92,89,.07));border-radius:8px">
-                  <div class="spinner"></div>
+                <div style="display:flex;align-items:center;gap:.75rem;padding:1rem;background:rgba(42,92,89,.07);border-radius:8px">
                   <div id="import-status-text" style="font-size:.85rem;color:var(--teal);font-weight:500">Reading file...</div>
                 </div>
               </div>
             </div>
-            <!-- PREVIEW TABLE -->
             <div id="import-preview" style="display:none">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div>
-                  <div style="font-size:.95rem;font-weight:700;color:var(--ink)">Preview <span id="import-count"></span></div>
-                  <div style="font-size:.78rem;color:var(--ink-soft);margin-top:.15rem">Review before importing. Uncheck any rows to skip.</div>
-                </div>
-                <div style="display:flex;gap:.5rem">
-                  <button class="btn-sm btn-ghost" onclick="cancelImport()" style="border:1px solid var(--rule-mid)">Cancel</button>
-                  <button class="btn-sm btn-teal" onclick="confirmImport()">Import All</button>
-                </div>
+                <div><div style="font-size:.95rem;font-weight:700;color:var(--ink)">Preview <span id="import-count"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:.15rem">Review before importing. Uncheck any rows to skip.</div></div>
+                <div style="display:flex;gap:.5rem"><button class="btn-sm btn-ghost" onclick="cancelImport()" style="border:1px solid var(--rule-mid)">Cancel</button><button class="btn-sm btn-teal" onclick="confirmImport()">Import All</button></div>
               </div>
               <div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
                 <table class="tbl" id="import-preview-table">
-                  <thead>
-                    <tr>
-                      <th style="width:32px"><input type="checkbox" id="import-check-all" checked onchange="toggleAllImport(this)"/></th>
-                      <th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th style="width:32px"><input type="checkbox" id="import-check-all" checked onchange="toggleAllImport(this)"/></th><th>Category</th><th>Q #</th><th>Question</th><th>VDR Ref.</th></tr></thead>
                   <tbody id="import-preview-tbody"></tbody>
                 </table>
               </div>
@@ -458,23 +426,12 @@
           <div class="modal" style="max-width:600px;box-shadow:var(--shadow)">
             <h3>Add a Question</h3>
             <p class="sub">Add a question from a buyer to the tracker.</p>
-            <div class="form-group">
-              <label class="form-label">Buyer</label>
-              <select class="form-input" id="new-q-buyer"></select>
-            </div>
+            <div class="form-group"><label class="form-label">Buyer</label><select class="form-input" id="new-q-buyer"></select></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
               <div class="form-group">
                 <label class="form-label">Category</label>
                 <select class="form-input" id="new-q-cat" onchange="handleCategoryChange(this)">
-                  <option value="Financial">Financial</option>
-                  <option value="Legal">Legal</option>
-                  <option value="Operations">Operations</option>
-                  <option value="HR">HR</option>
-                  <option value="Tax">Tax</option>
-                  <option value="IT">IT</option>
-                  <option value="Commercial">Commercial</option>
-                  <option value="Other">Other</option>
-                  <option value="__new__">+ Create new category...</option>
+                  <option value="Financial">Financial</option><option value="Legal">Legal</option><option value="Operations">Operations</option><option value="HR">HR</option><option value="Tax">Tax</option><option value="IT">IT</option><option value="Commercial">Commercial</option><option value="Other">Other</option><option value="__new__">+ Create new category...</option>
                 </select>
                 <input class="form-input" id="new-cat-input" placeholder="Category name..." style="display:none;margin-top:.5rem" onkeydown="if(event.key==='Enter'){saveNewCategory()}"/>
                 <div style="display:none;margin-top:.35rem;gap:.5rem" id="new-cat-actions">
@@ -482,19 +439,10 @@
                   <button class="btn-sm btn-ghost" onclick="cancelNewCategory()" style="font-size:.75rem;padding:.3rem .75rem;border:1px solid var(--rule-mid)">Cancel</button>
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Question Number</label>
-                <input class="form-input" type="text" id="new-q-num" placeholder="e.g. 2.1"/>
-              </div>
+              <div class="form-group"><label class="form-label">Question Number</label><input class="form-input" type="text" id="new-q-num" placeholder="e.g. 2.1"/></div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Question Text</label>
-              <textarea class="detail-ta" id="new-q-text" rows="3" placeholder="Enter the question as submitted by the buyer..."></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">VDR Reference</label>
-              <input class="form-input" type="text" id="new-q-vdr" placeholder="e.g. 2.1"/>
-            </div>
+            <div class="form-group"><label class="form-label">Question Text</label><textarea class="detail-ta" id="new-q-text" rows="3" placeholder="Enter the question as submitted by the buyer..."></textarea></div>
+            <div class="form-group"><label class="form-label">VDR Reference</label><input class="form-input" type="text" id="new-q-vdr" placeholder="e.g. 2.1"/></div>
             <button class="btn-primary" onclick="addQuestion()" style="margin-top:.5rem">Add to Tracker</button>
           </div>
         </div>
@@ -521,7 +469,7 @@
           <li style="font-size:.78rem;color:var(--ink-mid)">&#10003; &nbsp;Export to Excel</li>
         </ul>
       </div>
-      <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')" style="border:2px solid var(--teal);border-radius:10px;padding:1.5rem;cursor:pointer;transition:all .15s;background:var(--teal-bg,rgba(42,92,89,.04))">
+      <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')" style="border:2px solid var(--teal);border-radius:10px;padding:1.5rem;cursor:pointer;transition:all .15s;background:rgba(42,92,89,.04)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
           <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)">Standard</div>
           <span style="font-size:.6rem;font-weight:700;background:var(--teal);color:#fff;padding:.15rem .5rem;border-radius:100px">POPULAR</span>
@@ -573,7 +521,6 @@
       <button class="detail-close" onclick="closeDetail()">&#x2715;</button>
     </div>
     <div class="detail-body">
-      <!-- INTERNAL NOTES THREAD (advisor only) -->
       <div class="detail-sec" id="detail-advisor-sections">
         <h4>Internal Notes <span style="font-size:.65rem;color:var(--ink-faint);font-weight:400;text-transform:none;letter-spacing:0">(never visible to buyer)</span></h4>
         <div id="internal-thread" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.75rem;max-height:220px;overflow-y:auto"></div>
@@ -583,7 +530,6 @@
           <button class="btn-save" id="btn-add-comment" style="padding:.35rem .85rem;font-size:.75rem">Post Note</button>
         </div>
       </div>
-      <!-- EXTERNAL THREAD (buyer-facing) -->
       <div class="detail-sec">
         <h4>Response Thread <span style="font-size:.65rem;color:#065f46;font-weight:400;text-transform:none;letter-spacing:0">(visible to buyer)</span></h4>
         <div id="external-thread" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.75rem;max-height:260px;overflow-y:auto"></div>
@@ -595,10 +541,7 @@
     </div>
     <div class="detail-footer">
       <select class="status-sel" id="detail-status" onchange="saveStatus()">
-        <option value="open">Open</option>
-        <option value="in_review">In Review</option>
-        <option value="draft">Draft</option>
-        <option value="published">Published</option>
+        <option value="open">Open</option><option value="in_review">In Review</option><option value="draft">Draft</option><option value="published">Published</option>
       </select>
       <button class="btn-save" onclick="saveQuestion()">Save Details</button>
       <button class="btn-ghost btn-sm" onclick="deleteQuestion()" style="background:transparent;border:1px solid #fecaca;color:#dc2626;padding:.55rem 1rem;border-radius:6px;font-family:inherit;font-weight:600;font-size:.8rem;cursor:pointer">Delete</button>
@@ -655,14 +598,29 @@ async function init() {
 }
 
 async function loadUserProfile() {
+  // ── FIX: always set a display name first using metadata/email as fallback ──
+  var metaName = (currentUser.user_metadata && currentUser.user_metadata.full_name) || '';
+  var displayName = metaName || currentUser.email || 'Advisor';
+  currentUserName = displayName;
+
+  var initials = displayName.replace(/\s+/g, ' ').trim().split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+  if (!initials) initials = displayName.substring(0, 2).toUpperCase();
+
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name').textContent = displayName;
+  document.getElementById('user-email-display').textContent = currentUser.email || '';
+
+  // Now try to get the profile from DB (may have a richer name/firm)
   var r = await db.from('profiles').select('*').eq('id', currentUser.id).single();
   if (r.data) {
     currentFirmId = r.data.firm_id;
-    currentUserName = r.data.full_name || currentUser.email;
-    var initials = currentUserName.substring(0,2).toUpperCase();
-    document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name').textContent = currentUserName;
-    document.getElementById('user-email-display').textContent = currentUser.email;
+    if (r.data.full_name) {
+      currentUserName = r.data.full_name;
+      var profileInitials = r.data.full_name.replace(/\s+/g, ' ').trim().split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+      document.getElementById('user-avatar').textContent = profileInitials;
+      document.getElementById('user-name').textContent = r.data.full_name;
+    }
+    document.getElementById('user-email-display').textContent = currentUser.email || '';
   }
 }
 
@@ -710,34 +668,16 @@ document.getElementById('btn-signup').addEventListener('click', async function()
   var pass = document.getElementById('signup-pass').value;
   var errEl = document.getElementById('signup-error');
   errEl.classList.remove('show');
-  if (!name || !email || !pass) {
-    errEl.textContent = 'Please fill in all fields.';
-    errEl.classList.add('show');
-    return;
-  }
+  if (!name || !email || !pass) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; }
   var btn = document.getElementById('btn-signup');
   btn.disabled = true; btn.textContent = 'Creating account...';
   var r = await db.auth.signUp({ email: email, password: pass, options: { data: { full_name: name, firm_name: firmName } } });
-  if (r.error) {
-    errEl.textContent = r.error.message;
-    errEl.classList.add('show');
-    btn.disabled = false; btn.textContent = 'Create Account';
-    return;
-  }
+  if (r.error) { errEl.textContent = r.error.message; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Create Account'; return; }
   if (r.data.user) {
     var fr = await db.from('firms').insert({ name: firmName || 'My Firm' }).select().single();
-    if (fr.data) {
-      await db.from('profiles').insert({ id: r.data.user.id, firm_id: fr.data.id, full_name: name, email: email });
-    }
-    if (r.data.session) {
-      currentUser = r.data.user;
-      await loadUserProfile();
-      showApp();
-    } else {
-      document.getElementById('confirm-email-display').textContent = email;
-      showAllHidden();
-      document.getElementById('auth-confirm-view').style.display = 'block';
-    }
+    if (fr.data) { await db.from('profiles').insert({ id: r.data.user.id, firm_id: fr.data.id, full_name: name, email: email }); }
+    if (r.data.session) { currentUser = r.data.user; await loadUserProfile(); showApp(); }
+    else { document.getElementById('confirm-email-display').textContent = email; showAllHidden(); document.getElementById('auth-confirm-view').style.display = 'block'; }
   }
   btn.disabled = false; btn.textContent = 'Create Account';
 });
@@ -797,10 +737,8 @@ async function loadDashboard() {
   allDealsCache = r.data || [];
   var activeDeals = allDealsCache.filter(function(d) { return d.status === 'active'; });
   if (!allDealsCache.length) {
-    document.getElementById('stat-deals').textContent = 0;
-    document.getElementById('stat-buyers').textContent = 0;
-    document.getElementById('stat-open').textContent = 0;
-    document.getElementById('stat-pub').textContent = 0;
+    document.getElementById('stat-deals').textContent = 0; document.getElementById('stat-buyers').textContent = 0;
+    document.getElementById('stat-open').textContent = 0; document.getElementById('stat-pub').textContent = 0;
     document.getElementById('dashboard-attention').innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No deals yet.</div>';
     document.getElementById('dashboard-activity').innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No activity yet.</div>';
     return;
@@ -825,17 +763,11 @@ async function loadDashboard() {
   renderActivity(recentQ.slice(0,10));
 }
 
-function getDealName(dealId) {
-  var d = allDealsCache.find(function(d) { return d.id === dealId; });
-  return d ? d.name : '';
-}
+function getDealName(dealId) { var d = allDealsCache.find(function(d) { return d.id === dealId; }); return d ? d.name : ''; }
 
 function renderAttention(questions) {
   var el = document.getElementById('dashboard-attention');
-  if (!questions.length) {
-    el.innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">&#10003; Nothing needs attention.</div>';
-    return;
-  }
+  if (!questions.length) { el.innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">&#10003; Nothing needs attention.</div>'; return; }
   var html = '<div style="display:flex;flex-direction:column;gap:.6rem">';
   questions.forEach(function(q) {
     var age = Math.floor((Date.now() - new Date(q.updated_at||q.created_at)) / 86400000);
@@ -845,27 +777,19 @@ function renderAttention(questions) {
     var statusLabel = q.status === 'open' ? 'Open' : 'In Review';
     var dealName = getDealName(q.deal_id);
     html += '<div class="dash-card" data-did="' + q.deal_id + '" data-dname="' + dealName.replace(/"/g,'') + '" style="background:var(--white);border:1px solid var(--rule);border-radius:8px;padding:.85rem 1rem;cursor:pointer">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem">';
-    html += '<span style="font-size:.68rem;color:var(--ink-soft);font-weight:600">' + dealName + '</span>';
-    html += '<span style="font-size:.62rem;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';padding:.12rem .4rem;border-radius:100px">' + statusLabel + '</span>';
-    html += '</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem"><span style="font-size:.68rem;color:var(--ink-soft);font-weight:600">' + dealName + '</span>';
+    html += '<span style="font-size:.62rem;font-weight:700;background:' + statusBg + ';color:' + statusColor + ';padding:.12rem .4rem;border-radius:100px">' + statusLabel + '</span></div>';
     html += '<div style="font-size:.82rem;color:var(--ink);line-height:1.4;margin-bottom:.25rem">' + q.question_text.substring(0,80) + (q.question_text.length > 80 ? '...' : '') + '</div>';
-    html += '<div style="font-size:.68rem;color:var(--ink-faint)">' + (q.category||'') + (q.question_number ? ' &middot; Q' + q.question_number : '') + ' &middot; ' + ageStr + '</div>';
-    html += '</div>';
+    html += '<div style="font-size:.68rem;color:var(--ink-faint)">' + (q.category||'') + (q.question_number ? ' &middot; Q' + q.question_number : '') + ' &middot; ' + ageStr + '</div></div>';
   });
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.dash-card').forEach(function(card) {
-    card.addEventListener('click', function() { openDeal(card.dataset.did, card.dataset.dname); });
-  });
+  el.querySelectorAll('.dash-card').forEach(function(card) { card.addEventListener('click', function() { openDeal(card.dataset.did, card.dataset.dname); }); });
 }
 
 function renderActivity(questions) {
   var el = document.getElementById('dashboard-activity');
-  if (!questions.length) {
-    el.innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No activity yet.</div>';
-    return;
-  }
+  if (!questions.length) { el.innerHTML = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;padding:1.5rem;text-align:center;color:var(--ink-faint);font-size:.82rem">No activity yet.</div>'; return; }
   var statusIcons = {open:'&#9675;',in_review:'&#9679;',draft:'&#9651;',published:'&#10003;'};
   var statusColors = {open:'#3b82f6',in_review:'#f59e0b',draft:'#9ca3af',published:'#10b981'};
   var html = '<div style="background:var(--white);border:1px solid var(--rule);border-radius:10px;overflow:hidden">';
@@ -877,16 +801,12 @@ function renderActivity(questions) {
     var dealName = getDealName(q.deal_id);
     html += '<div class="activity-card" data-did="' + q.deal_id + '" data-dname="' + dealName.replace(/"/g,'') + '" style="padding:.75rem 1rem;' + border + 'display:flex;align-items:flex-start;gap:.75rem;cursor:pointer">';
     html += '<span style="color:' + (statusColors[q.status]||'#9ca3af') + ';font-size:.8rem;margin-top:.1rem">' + (statusIcons[q.status]||'&#9675;') + '</span>';
-    html += '<div style="flex:1;min-width:0">';
-    html += '<div style="font-size:.8rem;color:var(--ink);line-height:1.3">' + q.question_text.substring(0,60) + (q.question_text.length > 60 ? '...' : '') + '</div>';
-    html += '<div style="font-size:.68rem;color:var(--ink-faint);margin-top:.2rem">' + dealName + ' &middot; ' + dateStr + ' ' + timeStr + '</div>';
-    html += '</div></div>';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:.8rem;color:var(--ink);line-height:1.3">' + q.question_text.substring(0,60) + (q.question_text.length > 60 ? '...' : '') + '</div>';
+    html += '<div style="font-size:.68rem;color:var(--ink-faint);margin-top:.2rem">' + dealName + ' &middot; ' + dateStr + ' ' + timeStr + '</div></div></div>';
   });
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.activity-card').forEach(function(card) {
-    card.addEventListener('click', function() { openDeal(card.dataset.did, card.dataset.dname); });
-  });
+  el.querySelectorAll('.activity-card').forEach(function(card) { card.addEventListener('click', function() { openDeal(card.dataset.did, card.dataset.dname); }); });
 }
 
 async function loadAllDeals() {
@@ -910,44 +830,25 @@ function filterDeals() {
 function renderDealCards(containerId, deals) {
   var el = document.getElementById(containerId);
   if (!el) return;
-  if (!deals.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128193;</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>';
-    return;
-  }
+  if (!deals.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128193;</div><h3>No deals yet</h3><p>Create your first deal to get started.</p><button class="btn-sm btn-teal" onclick="openNewDealModal()">+ New Deal</button></div>'; return; }
   var html = '<div class="deals-grid">';
   deals.forEach(function(d) {
     var isActive = d.status !== 'closed';
     html += '<div class="deal-card" data-id="' + d.id + '" data-name="' + d.name.replace(/"/g,'&quot;') + '" onclick="openDealFromCard(this)">';
-    html += '<div class="deal-card-top"><div>';
-    html += '<div class="deal-name">' + d.name + '</div>';
-    html += '<div class="deal-date">' + new Date(d.created_at).toLocaleDateString() + '</div>';
-    html += '</div>';
+    html += '<div class="deal-card-top"><div><div class="deal-name">' + d.name + '</div><div class="deal-date">' + new Date(d.created_at).toLocaleDateString() + '</div></div>';
     html += '<div style="display:flex;align-items:center;gap:.5rem">';
     html += '<span class="deal-badge" style="background:' + (isActive?'#d1fae5':'#f3f4f6') + ';color:' + (isActive?'#065f46':'#6b7280') + '">' + (isActive?'Active':'Closed') + '</span>';
     html += '<button class="deal-toggle-btn" data-did="' + d.id + '" data-dstatus="' + d.status + '" style="font-size:.62rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;border:1px solid var(--rule-mid);background:transparent;color:var(--ink-soft);cursor:pointer">' + (isActive?'Close':'Reopen') + '</button>';
     html += '</div></div>';
-    html += '<div class="deal-stats">';
-    html += '<span class="deal-stat"><strong id="dsb-' + d.id + '">-</strong> buyers</span>';
-    html += '<span class="deal-stat"><strong id="dsq-' + d.id + '">-</strong> questions</span>';
-    html += '</div></div>';
+    html += '<div class="deal-stats"><span class="deal-stat"><strong id="dsb-' + d.id + '">-</strong> buyers</span><span class="deal-stat"><strong id="dsq-' + d.id + '">-</strong> questions</span></div></div>';
   });
   html += '</div>';
   el.innerHTML = html;
-  el.querySelectorAll('.deal-toggle-btn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      toggleDealStatus(btn.dataset.did, btn.dataset.dstatus);
-    });
-  });
+  el.querySelectorAll('.deal-toggle-btn').forEach(function(btn) { btn.addEventListener('click', function(e) { e.stopPropagation(); toggleDealStatus(btn.dataset.did, btn.dataset.dstatus); }); });
   deals.forEach(function(d) {
-    Promise.all([
-      db.from('buyers').select('id').eq('deal_id', d.id),
-      db.from('questions').select('id').eq('deal_id', d.id)
-    ]).then(function(results) {
-      var bEl = document.getElementById('dsb-' + d.id);
-      var qEl = document.getElementById('dsq-' + d.id);
-      if (bEl) bEl.textContent = (results[0].data||[]).length;
-      if (qEl) qEl.textContent = (results[1].data||[]).length;
+    Promise.all([db.from('buyers').select('id').eq('deal_id', d.id), db.from('questions').select('id').eq('deal_id', d.id)]).then(function(results) {
+      var bEl = document.getElementById('dsb-' + d.id); var qEl = document.getElementById('dsq-' + d.id);
+      if (bEl) bEl.textContent = (results[0].data||[]).length; if (qEl) qEl.textContent = (results[1].data||[]).length;
     });
   });
 }
@@ -960,16 +861,10 @@ async function toggleDealStatus(dealId, currentStatus) {
   var r = await db.from('deals').update({ status: newStatus }).eq('id', dealId);
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
   toast(newStatus === 'closed' ? 'Deal closed.' : 'Deal reopened.', 'success');
-  await loadAllDeals();
-  await loadDashboard();
+  await loadAllDeals(); await loadDashboard();
 }
 
-function openNewDealModal() {
-  // Show billing modal instead of direct deal creation
-  selectPlan('standard'); // default selection
-  document.getElementById('modal-billing').classList.add('open');
-  setTimeout(function() { document.getElementById('billing-deal-name').focus(); }, 100);
-}
+function openNewDealModal() { selectPlan('standard'); document.getElementById('modal-billing').classList.add('open'); setTimeout(function() { document.getElementById('billing-deal-name').focus(); }, 100); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 async function createDeal() {
@@ -980,10 +875,8 @@ async function createDeal() {
   var r = await db.from('deals').insert({ name: name, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
   btn.disabled = false; btn.textContent = 'Create Deal';
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
-  closeModal('modal-new-deal');
-  document.getElementById('new-deal-name').value = '';
-  toast('Deal created!', 'success');
-  openDeal(r.data.id, r.data.name);
+  closeModal('modal-new-deal'); document.getElementById('new-deal-name').value = '';
+  toast('Deal created!', 'success'); openDeal(r.data.id, r.data.name);
 }
 
 async function openDeal(dealId, dealName) {
@@ -993,8 +886,7 @@ async function openDeal(dealId, dealName) {
   document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
   document.getElementById('view-deal-detail').classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-  setDealTab('tracker');
-  await loadDealData();
+  setDealTab('tracker'); await loadDealData();
 }
 
 async function loadDealData() {
@@ -1005,11 +897,7 @@ async function loadDealData() {
   var r3 = await db.from('deal_categories').select('*').eq('deal_id', currentDeal.id).order('name');
   dealCategories = (r3.data||[]).map(function(c) { return c.name; });
   document.getElementById('deal-detail-meta').textContent = allBuyers.length + ' buyer' + (allBuyers.length !== 1 ? 's' : '') + ' \u00b7 ' + allQuestions.length + ' questions';
-  renderTrackerStats();
-  renderQuestions();
-  renderBuyers();
-  populateBuyerDropdowns();
-  populateCategoryDropdown();
+  renderTrackerStats(); renderQuestions(); renderBuyers(); populateBuyerDropdowns(); populateCategoryDropdown();
 }
 
 function renderTrackerStats() {
@@ -1023,14 +911,8 @@ function renderTrackerStats() {
 }
 
 var cpColors = ['cp-0','cp-1','cp-2','cp-3','cp-4'];
-function buyerColor(buyerId) {
-  var idx = allBuyers.findIndex(function(b) { return b.id === buyerId; });
-  return cpColors[Math.max(0,idx) % cpColors.length];
-}
-function buyerName(buyerId) {
-  var b = allBuyers.find(function(b) { return b.id === buyerId; });
-  return b ? b.name : 'Unknown';
-}
+function buyerColor(buyerId) { var idx = allBuyers.findIndex(function(b) { return b.id === buyerId; }); return cpColors[Math.max(0,idx) % cpColors.length]; }
+function buyerName(buyerId) { var b = allBuyers.find(function(b) { return b.id === buyerId; }); return b ? b.name : 'Unknown'; }
 function statusBadge(s) {
   var map = {open:'sp-open',in_review:'sp-review',draft:'sp-draft',published:'sp-pub'};
   var labels = {open:'Open',in_review:'In Review',draft:'Draft',published:'Published'};
@@ -1050,11 +932,7 @@ function renderQuestions() {
   if (!qs.length) { tbody.innerHTML = '<tr><td colspan="6" class="tbl-empty">No questions found.</td></tr>'; return; }
   if (!window.collapsedCategories) window.collapsedCategories = {};
   var groups = {}, groupOrder = [];
-  qs.forEach(function(q) {
-    var cat = q.category || 'Uncategorized';
-    if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
-    groups[cat].push(q);
-  });
+  qs.forEach(function(q) { var cat = q.category || 'Uncategorized'; if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); } groups[cat].push(q); });
   var html = '';
   groupOrder.forEach(function(cat) {
     var catQs = groups[cat];
@@ -1090,9 +968,7 @@ function renderQuestions() {
       if (cat) { if (!window.collapsedCategories) window.collapsedCategories = {}; window.collapsedCategories[cat] = !window.collapsedCategories[cat]; renderQuestions(); }
     });
   });
-  tbody.querySelectorAll('tr[data-qid]').forEach(function(row) {
-    row.addEventListener('click', function() { openQuestion(row.dataset.qid); });
-  });
+  tbody.querySelectorAll('tr[data-qid]').forEach(function(row) { row.addEventListener('click', function() { openQuestion(row.dataset.qid); }); });
 }
 
 function filterQuestions() { renderQuestions(); }
@@ -1102,17 +978,14 @@ function renderBuyers() {
   if (!allBuyers.length) { el.innerHTML = '<div style="color:var(--ink-faint);font-size:.85rem;padding:.5rem 0">No buyers added yet.</div>'; return; }
   var html = '';
   allBuyers.forEach(function(b) {
-    html += '<div class="buyer-row"><div><div class="buyer-name">' + b.name + '</div>';
-    html += '<div class="buyer-email">' + (b.email||'No email set') + '</div></div>';
+    html += '<div class="buyer-row"><div><div class="buyer-name">' + b.name + '</div><div class="buyer-email">' + (b.email||'No email set') + '</div></div>';
     html += '<div style="display:flex;gap:.5rem;align-items:center">';
     html += '<a class="buyer-link" href="#" data-token="' + b.access_token + '" onclick="event.preventDefault();copyBuyerLink(this.dataset.token)">Copy Portal Link</a>';
     html += '<button data-bid="' + b.id + '" class="del-buyer-btn" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;padding:.2rem .4rem;border-radius:4px" title="Remove buyer">&#10005;</button>';
     html += '</div></div>';
   });
   el.innerHTML = html;
-  el.querySelectorAll('.del-buyer-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { deleteBuyer(btn.dataset.bid); });
-  });
+  el.querySelectorAll('.del-buyer-btn').forEach(function(btn) { btn.addEventListener('click', function() { deleteBuyer(btn.dataset.bid); }); });
 }
 
 function copyBuyerLink(token) {
@@ -1121,12 +994,10 @@ function copyBuyerLink(token) {
 }
 
 function populateBuyerDropdowns() {
-  var sel = document.getElementById('new-q-buyer');
-  var fSel = document.getElementById('q-filter-buyer');
+  var sel = document.getElementById('new-q-buyer'); var fSel = document.getElementById('q-filter-buyer');
   var opts = '';
   allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
-  sel.innerHTML = opts;
-  fSel.innerHTML = '<option value="">All Buyers</option>' + opts;
+  sel.innerHTML = opts; fSel.innerHTML = '<option value="">All Buyers</option>' + opts;
 }
 
 async function addBuyer() {
@@ -1135,18 +1006,15 @@ async function addBuyer() {
   if (!name) { toast('Buyer name required.', 'error'); return; }
   var r = await db.from('buyers').insert({ deal_id: currentDeal.id, name: name, email: email });
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
-  document.getElementById('new-buyer-name').value = '';
-  document.getElementById('new-buyer-email').value = '';
-  toast('Buyer added!', 'success');
-  await loadDealData();
+  document.getElementById('new-buyer-name').value = ''; document.getElementById('new-buyer-email').value = '';
+  toast('Buyer added!', 'success'); await loadDealData();
 }
 
 async function deleteBuyer(buyerId) {
   if (!confirm('Remove this buyer? Their questions will remain in the tracker.')) return;
   var r = await db.from('buyers').delete().eq('id', buyerId);
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
-  toast('Buyer removed.', 'success');
-  await loadDealData();
+  toast('Buyer removed.', 'success'); await loadDealData();
 }
 
 var defaultCategories = ['Financial','Legal','Operations','HR','Tax','IT','Commercial','Other'];
@@ -1162,8 +1030,7 @@ function populateCategoryDropdown() {
 }
 
 function handleCategoryChange(sel) {
-  var newCatInput = document.getElementById('new-cat-input');
-  var newCatActions = document.getElementById('new-cat-actions');
+  var newCatInput = document.getElementById('new-cat-input'); var newCatActions = document.getElementById('new-cat-actions');
   if (sel.value === '__new__') { newCatInput.style.display = 'block'; newCatActions.style.display = 'flex'; newCatInput.focus(); }
   else { newCatInput.style.display = 'none'; newCatActions.style.display = 'none'; }
 }
@@ -1171,23 +1038,16 @@ function handleCategoryChange(sel) {
 async function saveNewCategory() {
   var name = document.getElementById('new-cat-input').value.trim();
   if (!name) return;
-  if (!dealCategories.includes(name)) {
-    await db.from('deal_categories').insert({ deal_id: currentDeal.id, name: name });
-    dealCategories.push(name);
-  }
+  if (!dealCategories.includes(name)) { await db.from('deal_categories').insert({ deal_id: currentDeal.id, name: name }); dealCategories.push(name); }
   populateCategoryDropdown();
   document.getElementById('new-q-cat').value = name;
-  document.getElementById('new-cat-input').style.display = 'none';
-  document.getElementById('new-cat-actions').style.display = 'none';
-  document.getElementById('new-cat-input').value = '';
+  document.getElementById('new-cat-input').style.display = 'none'; document.getElementById('new-cat-actions').style.display = 'none'; document.getElementById('new-cat-input').value = '';
   toast('Category added!', 'success');
 }
 
 function cancelNewCategory() {
   document.getElementById('new-q-cat').value = 'Financial';
-  document.getElementById('new-cat-input').style.display = 'none';
-  document.getElementById('new-cat-actions').style.display = 'none';
-  document.getElementById('new-cat-input').value = '';
+  document.getElementById('new-cat-input').style.display = 'none'; document.getElementById('new-cat-actions').style.display = 'none'; document.getElementById('new-cat-input').value = '';
 }
 
 async function addQuestion() {
@@ -1201,12 +1061,8 @@ async function addQuestion() {
   if (!buyer_id) { toast('Please add a buyer first.', 'error'); return; }
   var r = await db.from('questions').insert({ deal_id: currentDeal.id, buyer_id: buyer_id, category: category, question_number: question_number, question_text: question_text, vdr_reference: vdr_reference, status: 'open' });
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
-  document.getElementById('new-q-text').value = '';
-  document.getElementById('new-q-num').value = '';
-  document.getElementById('new-q-vdr').value = '';
-  toast('Question added!', 'success');
-  setDealTab('tracker');
-  await loadDealData();
+  document.getElementById('new-q-text').value = ''; document.getElementById('new-q-num').value = ''; document.getElementById('new-q-vdr').value = '';
+  toast('Question added!', 'success'); setDealTab('tracker'); await loadDealData();
 }
 
 async function deleteQuestion() {
@@ -1214,20 +1070,14 @@ async function deleteQuestion() {
   if (!confirm('Delete this question and all its messages? This cannot be undone.')) return;
   var r = await db.from('questions').delete().eq('id', currentQuestion.id);
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
-  toast('Question deleted.', 'success');
-  closeDetail();
-  await loadDealData();
+  toast('Question deleted.', 'success'); closeDetail(); await loadDealData();
 }
 
 async function openQuestion(qId) {
   currentQuestion = allQuestions.find(function(q) { return q.id === qId; });
   if (!currentQuestion) return;
   var isAdvisor = portalView === 'advisor';
-  document.getElementById('detail-meta').innerHTML =
-    '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> ' +
-    '<span class="cat-badge">' + (currentQuestion.category||'') + '</span> ' +
-    '<span class="qnum">' + (currentQuestion.question_number||'') + '</span> ' +
-    statusBadge(currentQuestion.status);
+  document.getElementById('detail-meta').innerHTML = '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> <span class="cat-badge">' + (currentQuestion.category||'') + '</span> <span class="qnum">' + (currentQuestion.question_number||'') + '</span> ' + statusBadge(currentQuestion.status);
   document.getElementById('detail-q-text').textContent = currentQuestion.question_text;
   document.getElementById('detail-response').value = '';
   document.getElementById('detail-status').value = currentQuestion.status;
@@ -1248,36 +1098,24 @@ async function loadThreads(questionId, isAdvisor) {
 function renderThread(containerId, messages, isInternal) {
   var el = document.getElementById(containerId);
   if (!el) return;
-  if (!messages.length) {
-    el.innerHTML = '<div style="color:var(--ink-faint);font-size:.75rem;font-style:italic;padding:.25rem 0">No messages yet.</div>';
-    return;
-  }
+  if (!messages.length) { el.innerHTML = '<div style="color:var(--ink-faint);font-size:.75rem;font-style:italic;padding:.25rem 0">No messages yet.</div>'; return; }
   var html = '';
   messages.forEach(function(m) {
     var d = new Date(m.created_at);
     var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
     var timeStr = d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
     var isBuyer = m.author_type === 'buyer';
-    var bg = isInternal ? '#fffbeb' : '#f0fdf4';
-    var border = isInternal ? '#fde68a' : '#86efac';
-    var nameColor = isInternal ? '#a87c2a' : '#065f46';
+    var bg = isInternal ? '#fffbeb' : '#f0fdf4'; var border = isInternal ? '#fde68a' : '#86efac'; var nameColor = isInternal ? '#a87c2a' : '#065f46';
     if (isBuyer) { bg = '#eff6ff'; border = '#bfdbfe'; nameColor = '#1e40af'; }
     html += '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;padding:.65rem .85rem;position:relative">';
     html += '<div style="font-size:.68rem;font-weight:700;color:' + nameColor + ';margin-bottom:.3rem;display:flex;justify-content:space-between;align-items:center">';
-    html += '<span>' + m.author_name + '</span>';
-    html += '<span style="font-weight:400;color:var(--ink-faint)">' + dateStr + ' &middot; ' + timeStr + '</span>';
-    html += '</div>';
+    html += '<span>' + m.author_name + '</span><span style="font-weight:400;color:var(--ink-faint)">' + dateStr + ' &middot; ' + timeStr + '</span></div>';
     html += '<div style="font-size:.82rem;color:var(--ink);line-height:1.5">' + m.message_text.replace(/\n/g, '<br>') + '</div>';
-    if (portalView === 'advisor') {
-      html += '<button class="del-msg-btn" data-mid="' + m.id + '" style="position:absolute;top:.4rem;right:.4rem;background:none;border:none;color:#d1d5db;cursor:pointer;font-size:.7rem;padding:.1rem .3rem;border-radius:3px" title="Delete">&#10005;</button>';
-    }
+    if (portalView === 'advisor') { html += '<button class="del-msg-btn" data-mid="' + m.id + '" style="position:absolute;top:.4rem;right:.4rem;background:none;border:none;color:#d1d5db;cursor:pointer;font-size:.7rem;padding:.1rem .3rem;border-radius:3px" title="Delete">&#10005;</button>'; }
     html += '</div>';
   });
-  el.innerHTML = html;
-  el.scrollTop = el.scrollHeight;
-  el.querySelectorAll('.del-msg-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { deleteMessage(btn.dataset.mid); });
-  });
+  el.innerHTML = html; el.scrollTop = el.scrollHeight;
+  el.querySelectorAll('.del-msg-btn').forEach(function(btn) { btn.addEventListener('click', function() { deleteMessage(btn.dataset.mid); }); });
 }
 
 function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); currentQuestion = null; }
@@ -1286,9 +1124,7 @@ async function saveQuestion() {
   if (!currentQuestion) return;
   var r = await db.from('questions').update({ status: document.getElementById('detail-status').value, updated_at: new Date().toISOString() }).eq('id', currentQuestion.id);
   if (r.error) { toast('Error saving.', 'error'); return; }
-  toast('Saved!', 'success');
-  closeDetail();
-  await loadDealData();
+  toast('Saved!', 'success'); closeDetail(); await loadDealData();
 }
 
 async function saveStatus() {
@@ -1301,10 +1137,7 @@ document.getElementById('btn-add-comment').addEventListener('click', async funct
   if (!text || !currentQuestion) return;
   var btn = document.getElementById('btn-add-comment');
   btn.disabled = true; btn.textContent = 'Posting...';
-  var r = await db.from('question_messages').insert({
-    question_id: currentQuestion.id, deal_id: currentQuestion.deal_id,
-    author_name: currentUserName, author_type: 'advisor', is_internal: true, message_text: text
-  });
+  var r = await db.from('question_messages').insert({ question_id: currentQuestion.id, deal_id: currentQuestion.deal_id, author_name: currentUserName, author_type: 'advisor', is_internal: true, message_text: text });
   btn.disabled = false; btn.textContent = 'Post Note';
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
   document.getElementById('detail-internal').value = '';
@@ -1317,26 +1150,16 @@ document.getElementById('btn-post-response').addEventListener('click', async fun
   if (!text || !currentQuestion) return;
   var btn = document.getElementById('btn-post-response');
   btn.disabled = true; btn.textContent = 'Posting...';
-  var r = await db.from('question_messages').insert({
-    question_id: currentQuestion.id, deal_id: currentQuestion.deal_id,
-    author_name: currentUserName, author_type: 'advisor', is_internal: false, message_text: text
-  });
+  var r = await db.from('question_messages').insert({ question_id: currentQuestion.id, deal_id: currentQuestion.deal_id, author_name: currentUserName, author_type: 'advisor', is_internal: false, message_text: text });
   if (!r.error) {
     await db.from('questions').update({ status: 'published', updated_at: new Date().toISOString() }).eq('id', currentQuestion.id);
-    currentQuestion.status = 'published';
-    document.getElementById('detail-status').value = 'published';
-    document.getElementById('detail-meta').innerHTML =
-      '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> ' +
-      '<span class="cat-badge">' + (currentQuestion.category||'') + '</span> ' +
-      '<span class="qnum">' + (currentQuestion.question_number||'') + '</span> ' +
-      statusBadge('published');
+    currentQuestion.status = 'published'; document.getElementById('detail-status').value = 'published';
+    document.getElementById('detail-meta').innerHTML = '<span class="cp ' + buyerColor(currentQuestion.buyer_id) + '">' + buyerName(currentQuestion.buyer_id) + '</span> <span class="cat-badge">' + (currentQuestion.category||'') + '</span> <span class="qnum">' + (currentQuestion.question_number||'') + '</span> ' + statusBadge('published');
   }
   btn.disabled = false; btn.textContent = 'Post Response';
   if (r.error) { toast('Error: ' + r.error.message, 'error'); return; }
   document.getElementById('detail-response').value = '';
-  toast('Response posted!', 'success');
-  await loadThreads(currentQuestion.id, true);
-  await loadDealData();
+  toast('Response posted!', 'success'); await loadThreads(currentQuestion.id, true); await loadDealData();
 });
 
 async function deleteMessage(messageId) {
@@ -1353,6 +1176,12 @@ function setDealTab(tab) {
     var btn = document.getElementById('deal-tab-' + t);
     if (btn) btn.className = 'btn-sm ' + (t === tab ? 'btn-teal' : 'btn-ghost');
   });
+  if (tab === 'import') {
+    var sel = document.getElementById('import-buyer-sel');
+    var opts = '';
+    allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
+    sel.innerHTML = opts || '<option value="">No buyers — add one first</option>';
+  }
 }
 
 function setPortalView(v) {
@@ -1382,18 +1211,12 @@ async function loadNotifications() {
     var d = new Date(n.created_at);
     var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
     var timeStr = d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-    html += '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--rule);font-size:.8rem;color:var(--ink)">';
-    html += '<div>' + n.message + '</div>';
-    html += '<div style="font-size:.68rem;color:var(--ink-faint);margin-top:.2rem">' + dateStr + ' &middot; ' + timeStr + '</div>';
-    html += '</div>';
+    html += '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--rule);font-size:.8rem;color:var(--ink)"><div>' + n.message + '</div><div style="font-size:.68rem;color:var(--ink-faint);margin-top:.2rem">' + dateStr + ' &middot; ' + timeStr + '</div></div>';
   });
   list.innerHTML = html;
 }
 
-function toggleNotifications() {
-  var dd = document.getElementById('notif-dropdown');
-  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
-}
+function toggleNotifications() { var dd = document.getElementById('notif-dropdown'); dd.style.display = dd.style.display === 'none' ? 'block' : 'none'; }
 
 async function markAllRead() {
   if (!currentFirmId) return;
@@ -1405,19 +1228,15 @@ async function markAllRead() {
 
 document.addEventListener('click', function(e) {
   var dd = document.getElementById('notif-dropdown');
-  if (dd && dd.style.display === 'block' && !dd.contains(e.target) && !e.target.closest('[onclick="toggleNotifications()"]')) {
-    dd.style.display = 'none';
-  }
+  if (dd && dd.style.display === 'block' && !dd.contains(e.target) && !e.target.closest('[onclick="toggleNotifications()"]')) { dd.style.display = 'none'; }
 });
 
 var toastTimer;
 function toast(msg, type) {
   type = type || '';
   var el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
+  el.textContent = msg; el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
 }
 
 function checkBuyerPortal() {
@@ -1430,53 +1249,28 @@ function checkBuyerPortal() {
 async function loadBuyerPortal(token) {
   document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;color:#5e7270;font-size:.9rem;">Loading your portal...</div>';
   var r = await db.from('buyers').select('*, deals(*)').eq('access_token', token).single();
-  if (r.error || !r.data) {
-    document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>';
-    return;
-  }
+  if (r.error || !r.data) { document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Plus Jakarta Sans,sans-serif;text-align:center;padding:2rem"><div style="font-size:2rem;margin-bottom:1rem">&#128274;</div><div style="font-size:1.1rem;font-weight:700;color:#141f1e;margin-bottom:.5rem">Invalid or expired link</div><div style="font-size:.85rem;color:#5e7270">Please contact your advisor for a new portal link.</div></div>'; return; }
   portalBuyer = r.data;
   var r2 = await db.from('questions').select('*').eq('deal_id', r.data.deal_id).eq('buyer_id', r.data.id).order('created_at', {ascending:true});
   var qs = r2.data || [];
-  document.body.innerHTML =
-    '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif">' +
-    '<div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between">' +
-    '<div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div>' +
-    '<div style="font-size:.78rem;color:rgba(255,255,255,.55)">' + r.data.deals.name + ' \u2014 ' + r.data.name + '</div>' +
-    '</div>' +
-    '<div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem">' +
-    '<h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">' + r.data.deals.name + '</h1>' +
-    '<p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">' + r.data.name + ' \u00b7 ' + qs.length + ' question' + (qs.length !== 1 ? 's' : '') + '</p>' +
-    '<div id="buyer-questions-list"></div>' +
-    '</div></div>';
+  document.body.innerHTML = '<div style="min-height:100vh;background:#f2f4f3;font-family:Plus Jakarta Sans,sans-serif"><div style="background:#1a2827;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between"><div style="font-size:1rem;font-weight:800;color:#fff;letter-spacing:-0.02em">Question<span style="color:#6ecfcb">Pilot</span></div><div style="font-size:.78rem;color:rgba(255,255,255,.55)">' + r.data.deals.name + ' \u2014 ' + r.data.name + '</div></div><div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem"><h1 style="font-size:1.3rem;font-weight:800;color:#141f1e;letter-spacing:-0.02em;margin-bottom:.35rem">' + r.data.deals.name + '</h1><p style="font-size:.82rem;color:#5e7270;margin-bottom:1.75rem">' + r.data.name + ' \u00b7 ' + qs.length + ' question' + (qs.length !== 1 ? 's' : '') + '</p><div id="buyer-questions-list"></div></div></div>';
   renderBuyerQuestions(qs, r.data);
 }
 
 function renderBuyerQuestions(qs, buyer) {
   var container = document.getElementById('buyer-questions-list');
-  if (!qs.length) {
-    container.innerHTML = '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>';
-    return;
-  }
+  if (!qs.length) { container.innerHTML = '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>'; return; }
   var html = '';
   qs.forEach(function(q) {
     html += '<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:1rem;overflow:hidden">';
-    html += '<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)">';
-    html += '<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
-    html += '<span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">' + (q.category||'') + '</span>';
-    html += '<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">' + (q.question_number||'') + '</span>';
-    html += '</div>';
-    html += '<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">' + q.question_text + '</div>';
-    html += '</div>';
+    html += '<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem"><span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">' + (q.category||'') + '</span><span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">' + (q.question_number||'') + '</span></div>';
+    html += '<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">' + q.question_text + '</div></div>';
     html += '<div id="buyer-thread-' + q.id + '" style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem;max-height:300px;overflow-y:auto;background:#fafbfa"></div>';
-    html += '<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem">';
-    html += '<textarea id="buyer-reply-' + q.id + '" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
-    html += '<button class="buyer-send-btn" data-qid="' + q.id + '" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap">Send</button>';
-    html += '</div></div>';
+    html += '<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem"><textarea id="buyer-reply-' + q.id + '" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
+    html += '<button class="buyer-send-btn" data-qid="' + q.id + '" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap">Send</button></div></div>';
   });
   container.innerHTML = html;
-  container.querySelectorAll('.buyer-send-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() { postBuyerReply(btn.dataset.qid); });
-  });
+  container.querySelectorAll('.buyer-send-btn').forEach(function(btn) { btn.addEventListener('click', function() { postBuyerReply(btn.dataset.qid); }); });
   qs.forEach(function(q) { loadBuyerThread(q.id); });
 }
 
@@ -1488,197 +1282,88 @@ async function loadBuyerThread(questionId) {
   if (!msgs.length) { el.innerHTML = '<div style="color:#8fa5a3;font-size:.78rem;font-style:italic">No responses yet.</div>'; return; }
   var html = '';
   msgs.forEach(function(m) {
-    var d = new Date(m.created_at);
-    var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-    var timeStr = d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-    var isBuyer = m.author_type === 'buyer';
-    var bg = isBuyer ? '#eff6ff' : '#f0fdf4';
-    var border = isBuyer ? '#bfdbfe' : '#86efac';
-    var nameColor = isBuyer ? '#1e40af' : '#065f46';
-    html += '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;padding:.6rem .85rem">';
-    html += '<div style="font-size:.68rem;font-weight:700;color:' + nameColor + ';margin-bottom:.3rem;display:flex;justify-content:space-between">';
-    html += '<span>' + m.author_name + '</span><span style="font-weight:400;color:#8fa5a3">' + dateStr + ' &middot; ' + timeStr + '</span></div>';
+    var d = new Date(m.created_at); var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); var timeStr = d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+    var isBuyer = m.author_type === 'buyer'; var bg = isBuyer ? '#eff6ff' : '#f0fdf4'; var border = isBuyer ? '#bfdbfe' : '#86efac'; var nameColor = isBuyer ? '#1e40af' : '#065f46';
+    html += '<div style="background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;padding:.6rem .85rem"><div style="font-size:.68rem;font-weight:700;color:' + nameColor + ';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>' + m.author_name + '</span><span style="font-weight:400;color:#8fa5a3">' + dateStr + ' &middot; ' + timeStr + '</span></div>';
     html += '<div style="font-size:.82rem;color:#141f1e;line-height:1.5">' + m.message_text.replace(/\n/g, '<br>') + '</div></div>';
   });
-  el.innerHTML = html;
-  el.scrollTop = el.scrollHeight;
+  el.innerHTML = html; el.scrollTop = el.scrollHeight;
 }
 
 async function postBuyerReply(questionId) {
   if (!portalBuyer) return;
-  var input = document.getElementById('buyer-reply-' + questionId);
-  var text = input.value.trim();
-  if (!text) return;
-  var r = await db.from('question_messages').insert({
-    question_id: questionId, deal_id: portalBuyer.deal_id,
-    author_name: portalBuyer.name, author_type: 'buyer',
-    buyer_id: portalBuyer.id, is_internal: false, message_text: text
-  });
+  var input = document.getElementById('buyer-reply-' + questionId); var text = input.value.trim(); if (!text) return;
+  var r = await db.from('question_messages').insert({ question_id: questionId, deal_id: portalBuyer.deal_id, author_name: portalBuyer.name, author_type: 'buyer', buyer_id: portalBuyer.id, is_internal: false, message_text: text });
   if (r.error) { alert('Error: ' + r.error.message); return; }
-  input.value = '';
-  await db.from('questions').update({ status: 'in_review', updated_at: new Date().toISOString() }).eq('id', questionId);
-  loadBuyerThread(questionId);
+  input.value = ''; await db.from('questions').update({ status: 'in_review', updated_at: new Date().toISOString() }).eq('id', questionId); loadBuyerThread(questionId);
 }
 
-
-// ── AI IMPORT & EXPORT ────────────────────────────────────────────────────────
-
+// ── AI IMPORT ─────────────────────────────────────────────────────────────────
 var importedRows = [];
-var anthropicKey = null;
 
-async function getAnthropicKey() {
-  if (anthropicKey) return anthropicKey;
-  var r = await db.from('app_config').select('value').eq('key', 'anthropic_key').single();
-  if (r.data) { anthropicKey = r.data.value; return anthropicKey; }
-  return null;
-}
-
-function handleImportDrop(event) {
-  event.preventDefault();
-  document.getElementById('import-drop-zone').style.borderColor = 'var(--rule-mid)';
-  var file = event.dataTransfer.files[0];
-  if (file) processImportFile(file);
-}
-
-function handleImportFile(input) {
-  var file = input.files[0];
-  if (file) processImportFile(file);
-  input.value = '';
-}
+function handleImportDrop(event) { event.preventDefault(); document.getElementById('import-drop-zone').style.borderColor = 'var(--rule-mid)'; var file = event.dataTransfer.files[0]; if (file) processImportFile(file); }
+function handleImportFile(input) { var file = input.files[0]; if (file) processImportFile(file); input.value = ''; }
 
 async function processImportFile(file) {
-  var statusEl = document.getElementById('import-status');
-  var statusText = document.getElementById('import-status-text');
-  var previewEl = document.getElementById('import-preview');
-  statusEl.style.display = 'block';
-  previewEl.style.display = 'none';
-  statusText.textContent = 'Reading file...';
-
+  var statusEl = document.getElementById('import-status'); var statusText = document.getElementById('import-status-text'); var previewEl = document.getElementById('import-preview');
+  statusEl.style.display = 'block'; previewEl.style.display = 'none'; statusText.textContent = 'Reading file...';
   try {
-    // Parse file with SheetJS using FileReader for better compatibility
-    var data = await new Promise(function(resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function(e) { resolve(e.target.result); };
-      reader.onerror = function(e) { reject(new Error('File read error')); };
-      reader.readAsArrayBuffer(file);
-    });
+    var data = await new Promise(function(resolve, reject) { var reader = new FileReader(); reader.onload = function(e) { resolve(e.target.result); }; reader.onerror = function(e) { reject(new Error('File read error')); }; reader.readAsArrayBuffer(file); });
     var workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
     var sheet = workbook.Sheets[workbook.SheetNames[0]];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-    console.log('Parsed rows:', rows.length, 'First row:', rows[0]);
-
     if (!rows.length) { toast('File appears empty.', 'error'); statusEl.style.display = 'none'; return; }
-
-    // Get headers and first 20 rows for AI analysis
-    var headers = rows[0];
-    var sampleRows = rows.slice(1, 21);
+    var headers = rows[0]; var sampleRows = rows.slice(1, 21);
     var sampleText = headers.join(' | ') + '\n' + sampleRows.map(function(r) { return r.join(' | '); }).join('\n');
-
     statusText.textContent = 'AI is analyzing your file...';
-
     var prompt = 'You are parsing a due diligence question tracker exported from Excel or CSV.\n\nHere are the headers and first rows:\n\n' + sampleText + '\n\nIdentify which column index (0-based) corresponds to each field. Respond ONLY with valid JSON, no explanation:\n{\n  "question": <column_index or null>,\n  "category": <column_index or null>,\n  "question_number": <column_index or null>,\n  "vdr_reference": <column_index or null>\n}\n\nIf a field does not exist in the data, use null. The most important field is "question" - find the column with the actual question text.';
-
-    var response = await db.functions.invoke('swift-task', {
-      body: { prompt: prompt, max_tokens: 500 }
-    });
-    console.log('Edge function response:', JSON.stringify(response));
+    var response = await db.functions.invoke('swift-task', { body: { prompt: prompt, max_tokens: 500 } });
     var result = response.data;
-    if (response.error) {
-      throw new Error('Edge function error: ' + JSON.stringify(response.error));
-    }
-    if (!result || !result.content || !result.content[0]) {
-      throw new Error('AI API error: ' + JSON.stringify(result));
-    }
-    var mappingText = result.content[0].text.trim();
-    mappingText = mappingText.replace(/```json|```/g, '').trim();
+    if (response.error) throw new Error('Edge function error: ' + JSON.stringify(response.error));
+    if (!result || !result.content || !result.content[0]) throw new Error('AI API error: ' + JSON.stringify(result));
+    var mappingText = result.content[0].text.trim().replace(/```json|```/g, '').trim();
     var mapping = JSON.parse(mappingText);
-
-    if (mapping.question === null || mapping.question === undefined) {
-      toast('Could not find a question column. Check your file format.', 'error');
-      statusEl.style.display = 'none';
-      return;
-    }
-
+    if (mapping.question === null || mapping.question === undefined) { toast('Could not find a question column. Check your file format.', 'error'); statusEl.style.display = 'none'; return; }
     statusText.textContent = 'Parsing questions...';
-
-    // Now parse all rows using the mapping
     var dataRows = rows.slice(1).filter(function(r) { return r[mapping.question] && String(r[mapping.question]).trim(); });
-
-    // Use AI to clean and standardize categories if we have them
-    var categories = [];
+    var categories = {};
     if (mapping.category !== null) {
       var rawCats = [...new Set(dataRows.map(function(r) { return String(r[mapping.category]||'').trim(); }).filter(Boolean))];
       if (rawCats.length > 0 && rawCats.length <= 30) {
         statusText.textContent = 'AI is standardizing categories...';
         var catPrompt = 'Standardize these due diligence categories into clean, consistent names. Map each raw value to a standardized name. Use standard categories like Financial, Legal, Operations, HR, Tax, IT, Commercial, Real Estate, Environmental, Insurance, or create appropriate ones.\n\nRaw categories: ' + JSON.stringify(rawCats) + '\n\nRespond ONLY with valid JSON mapping raw to standardized:\n{"raw_category": "Standardized Category", ...}';
-        var catResponse = await db.functions.invoke('swift-task', {
-          body: { prompt: catPrompt, max_tokens: 1000 }
-        });
+        var catResponse = await db.functions.invoke('swift-task', { body: { prompt: catPrompt, max_tokens: 1000 } });
         var catResult = catResponse.data;
-        console.log('AI category response:', catResult);
-        if (!catResult || !catResult.content || !catResult.content[0]) { categories = {}; }
         var catText = catResult && catResult.content && catResult.content[0] ? catResult.content[0].text.trim().replace(/```json|```/g, '').trim() : '{}';
         try { categories = JSON.parse(catText); } catch(e) { categories = {}; }
       }
     }
-
-    // Build preview rows
-    importedRows = dataRows.map(function(r, i) {
+    importedRows = dataRows.map(function(r) {
       var rawCat = mapping.category !== null ? String(r[mapping.category]||'').trim() : 'Other';
-      var cleanCat = categories[rawCat] || rawCat || 'Other';
-      return {
-        include: true,
-        question_text: String(r[mapping.question]||'').trim(),
-        category: cleanCat,
-        question_number: mapping.question_number !== null ? String(r[mapping.question_number]||'').trim() : '',
-        vdr_reference: mapping.vdr_reference !== null ? String(r[mapping.vdr_reference]||'').trim() : ''
-      };
+      return { include: true, question_text: String(r[mapping.question]||'').trim(), category: categories[rawCat] || rawCat || 'Other', question_number: mapping.question_number !== null ? String(r[mapping.question_number]||'').trim() : '', vdr_reference: mapping.vdr_reference !== null ? String(r[mapping.vdr_reference]||'').trim() : '' };
     }).filter(function(r) { return r.question_text; });
-
-    statusEl.style.display = 'none';
-    renderImportPreview();
-
-  } catch(e) {
-    console.error(e);
-    toast('Error parsing file: ' + e.message, 'error');
-    statusEl.style.display = 'none';
-  }
+    statusEl.style.display = 'none'; renderImportPreview();
+  } catch(e) { console.error(e); toast('Error parsing file: ' + e.message, 'error'); statusEl.style.display = 'none'; }
 }
 
 function renderImportPreview() {
-  var previewEl = document.getElementById('import-preview');
-  var tbody = document.getElementById('import-preview-tbody');
+  var previewEl = document.getElementById('import-preview'); var tbody = document.getElementById('import-preview-tbody');
   document.getElementById('import-count').textContent = importedRows.length + ' questions found';
   var html = '';
   importedRows.forEach(function(row, i) {
-    html += '<tr>';
-    html += '<td><input type="checkbox" class="import-row-check" data-idx="' + i + '" ' + (row.include ? 'checked' : '') + '/></td>';
+    html += '<tr><td><input type="checkbox" class="import-row-check" data-idx="' + i + '" ' + (row.include ? 'checked' : '') + '/></td>';
     html += '<td><span class="cat-badge">' + (row.category||'') + '</span></td>';
     html += '<td style="font-size:.72rem;color:var(--teal);font-weight:700;font-family:monospace">' + (row.question_number||'') + '</td>';
     html += '<td style="max-width:300px;font-size:.82rem">' + row.question_text + '</td>';
-    html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (row.vdr_reference||'') + '</td>';
-    html += '</tr>';
+    html += '<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">' + (row.vdr_reference||'') + '</td></tr>';
   });
   tbody.innerHTML = html;
-  tbody.querySelectorAll('.import-row-check').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      importedRows[parseInt(cb.dataset.idx)].include = cb.checked;
-    });
-  });
+  tbody.querySelectorAll('.import-row-check').forEach(function(cb) { cb.addEventListener('change', function() { importedRows[parseInt(cb.dataset.idx)].include = cb.checked; }); });
   previewEl.style.display = 'block';
 }
 
-function toggleAllImport(cb) {
-  var checked = cb.checked;
-  importedRows.forEach(function(r) { r.include = checked; });
-  document.querySelectorAll('.import-row-check').forEach(function(c) { c.checked = checked; });
-}
-
-function cancelImport() {
-  importedRows = [];
-  document.getElementById('import-preview').style.display = 'none';
-  document.getElementById('import-status').style.display = 'none';
-}
+function toggleAllImport(cb) { var checked = cb.checked; importedRows.forEach(function(r) { r.include = checked; }); document.querySelectorAll('.import-row-check').forEach(function(c) { c.checked = checked; }); }
+function cancelImport() { importedRows = []; document.getElementById('import-preview').style.display = 'none'; document.getElementById('import-status').style.display = 'none'; }
 
 async function confirmImport() {
   var buyerId = document.getElementById('import-buyer-sel').value;
@@ -1687,110 +1372,45 @@ async function confirmImport() {
   if (!toImport.length) { toast('No rows selected.', 'error'); return; }
   var btn = document.querySelector('[onclick="confirmImport()"]');
   btn.disabled = true; btn.textContent = 'Importing...';
-
-  // Save any new categories
   var existingCats = defaultCategories.concat(dealCategories);
   var newCats = [...new Set(toImport.map(function(r) { return r.category; }))].filter(function(c) { return c && !existingCats.includes(c); });
-  for (var i = 0; i < newCats.length; i++) {
-    await db.from('deal_categories').insert({ deal_id: currentDeal.id, name: newCats[i] }).select();
-  }
-
-  // Insert questions in batches
-  var inserts = toImport.map(function(r) {
-    return { deal_id: currentDeal.id, buyer_id: buyerId, category: r.category, question_number: r.question_number, question_text: r.question_text, vdr_reference: r.vdr_reference, status: 'open' };
-  });
-
+  for (var i = 0; i < newCats.length; i++) { await db.from('deal_categories').insert({ deal_id: currentDeal.id, name: newCats[i] }).select(); }
+  var inserts = toImport.map(function(r) { return { deal_id: currentDeal.id, buyer_id: buyerId, category: r.category, question_number: r.question_number, question_text: r.question_text, vdr_reference: r.vdr_reference, status: 'open' }; });
   var batchSize = 50;
   for (var j = 0; j < inserts.length; j += batchSize) {
     var batch = inserts.slice(j, j + batchSize);
     var r = await db.from('questions').insert(batch);
     if (r.error) { toast('Error importing: ' + r.error.message, 'error'); btn.disabled = false; btn.textContent = 'Import All'; return; }
   }
-
   btn.disabled = false; btn.textContent = 'Import All';
-  importedRows = [];
-  document.getElementById('import-preview').style.display = 'none';
-  toast(toImport.length + ' questions imported!', 'success');
-  setDealTab('tracker');
-  await loadDealData();
+  importedRows = []; document.getElementById('import-preview').style.display = 'none';
+  toast(toImport.length + ' questions imported!', 'success'); setDealTab('tracker'); await loadDealData();
 }
 
-// ── EXPORT ────────────────────────────────────────────────────────────────────
 async function exportTracker() {
   if (!currentDeal) return;
   toast('Preparing export...');
-
   var rows = [['Counterparty', 'Category', 'Q #', 'Question', 'VDR Ref.', 'Status', 'Response']];
   allQuestions.forEach(function(q) {
     var buyer = allBuyers.find(function(b) { return b.id === q.buyer_id; });
-    rows.push([
-      buyer ? buyer.name : '',
-      q.category || '',
-      q.question_number || '',
-      q.question_text || '',
-      q.vdr_reference || '',
-      q.status || '',
-      q.client_response || ''
-    ]);
+    rows.push([buyer ? buyer.name : '', q.category || '', q.question_number || '', q.question_text || '', q.vdr_reference || '', q.status || '', q.client_response || '']);
   });
-
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // Column widths
-  ws['!cols'] = [
-    {wch:20},{wch:15},{wch:8},{wch:60},{wch:12},{wch:12},{wch:60}
-  ];
-
+  var wb = XLSX.utils.book_new(); var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:15},{wch:8},{wch:60},{wch:12},{wch:12},{wch:60}];
   XLSX.utils.book_append_sheet(wb, ws, 'Tracker');
   XLSX.writeFile(wb, currentDeal.name.replace(/[^a-z0-9]/gi,'-') + '-tracker.xlsx');
   toast('Export ready!', 'success');
 }
 
-// Populate import buyer dropdown when switching to import tab
-var _origSetDealTab = setDealTab;
-setDealTab = function(tab) {
-  _origSetDealTab(tab);
-  if (tab === 'import') {
-    var sel = document.getElementById('import-buyer-sel');
-    var opts = '';
-    allBuyers.forEach(function(b) { opts += '<option value="' + b.id + '">' + b.name + '</option>'; });
-    sel.innerHTML = opts || '<option value="">No buyers — add one first</option>';
-    // Show import tab button as active
-    var importBtn = document.getElementById('deal-tab-import');
-    if (importBtn) importBtn.className = 'btn-sm btn-teal';
-  } else {
-    var importBtn = document.getElementById('deal-tab-import');
-    if (importBtn) importBtn.className = 'btn-sm btn-ghost';
-  }
-};
-
-
-
-// ── STRIPE BILLING ────────────────────────────────────────────────────────────
-
-var PRICE_IDS = {
-  starter: 'price_1TAwARQsStEsWYrIfato75C5',
-  standard: 'price_1TAwBOQsStEsWYrIVnqMXQyX'
-};
-
+// ── STRIPE BILLING ─────────────────────────────────────────────────────────────
+var PRICE_IDS = { starter: 'price_1TAwARQsStEsWYrIfato75C5', standard: 'price_1TAwBOQsStEsWYrIVnqMXQyX' };
 var selectedPlan = 'standard';
 
 function selectPlan(plan) {
   selectedPlan = plan;
-  var starterCard = document.getElementById('plan-starter');
-  var standardCard = document.getElementById('plan-standard');
-  if (plan === 'starter') {
-    starterCard.style.border = '2px solid var(--teal)';
-    starterCard.style.background = 'rgba(42,92,89,.04)';
-    standardCard.style.border = '2px solid var(--rule-mid)';
-    standardCard.style.background = 'transparent';
-  } else {
-    standardCard.style.border = '2px solid var(--teal)';
-    standardCard.style.background = 'rgba(42,92,89,.04)';
-    starterCard.style.border = '2px solid var(--rule-mid)';
-    starterCard.style.background = 'transparent';
-  }
+  var starterCard = document.getElementById('plan-starter'); var standardCard = document.getElementById('plan-standard');
+  if (plan === 'starter') { starterCard.style.border = '2px solid var(--teal)'; starterCard.style.background = 'rgba(42,92,89,.04)'; standardCard.style.border = '2px solid var(--rule-mid)'; standardCard.style.background = 'transparent'; }
+  else { standardCard.style.border = '2px solid var(--teal)'; standardCard.style.background = 'rgba(42,92,89,.04)'; starterCard.style.border = '2px solid var(--rule-mid)'; starterCard.style.background = 'transparent'; }
 }
 
 async function startCheckout() {
@@ -1798,70 +1418,37 @@ async function startCheckout() {
   if (!dealName) { toast('Please enter a deal name.', 'error'); return; }
   var btn = document.getElementById('btn-checkout');
   btn.disabled = true; btn.textContent = 'Loading...';
-
-  // Store deal name in session for after payment
-  sessionStorage.setItem('pending_deal_name', dealName);
-  sessionStorage.setItem('pending_deal_plan', selectedPlan);
-
+  sessionStorage.setItem('pending_deal_name', dealName); sessionStorage.setItem('pending_deal_plan', selectedPlan);
   var priceId = PRICE_IDS[selectedPlan];
   var successUrl = window.location.origin + window.location.pathname + '?payment=success&deal=' + encodeURIComponent(dealName);
   var cancelUrl = window.location.origin + window.location.pathname + '?payment=cancelled';
-
-  console.log('Calling clever-service with:', { price_id: priceId, deal_name: dealName });
-  
   try {
     var r = await Promise.race([
-      db.functions.invoke('clever-service', {
-        body: { price_id: priceId, deal_name: dealName, success_url: successUrl, cancel_url: cancelUrl }
-      }),
+      db.functions.invoke('clever-service', { body: { price_id: priceId, deal_name: dealName, success_url: successUrl, cancel_url: cancelUrl } }),
       new Promise(function(_, reject) { setTimeout(function() { reject(new Error('Timeout after 10s')); }, 10000); })
     ]);
-
-    console.log('clever-service response:', JSON.stringify(r));
     btn.disabled = false; btn.textContent = 'Continue to Payment';
-
     if (r.error) { toast('Function error: ' + JSON.stringify(r.error), 'error'); return; }
     if (!r.data || !r.data.url) { toast('No checkout URL returned: ' + JSON.stringify(r.data), 'error'); return; }
     window.location.href = r.data.url;
-  } catch(err) {
-    btn.disabled = false; btn.textContent = 'Continue to Payment';
-    console.error('Checkout error:', err);
-    toast('Error: ' + err.message, 'error');
-  }
+  } catch(err) { btn.disabled = false; btn.textContent = 'Continue to Payment'; toast('Error: ' + err.message, 'error'); }
 }
 
 async function checkPaymentReturn() {
   var params = new URLSearchParams(window.location.search);
   if (params.get('payment') === 'success') {
     var dealName = params.get('deal') || sessionStorage.getItem('pending_deal_name') || 'New Deal';
-    // Clean URL
     window.history.replaceState({}, '', window.location.pathname);
-    // Create the deal now that payment is confirmed
     toast('Payment confirmed! Creating your deal...', 'success');
     if (currentFirmId) {
       var r = await db.from('deals').insert({ name: dealName, firm_id: currentFirmId, created_by: currentUser.id }).select().single();
-      if (!r.error) {
-        sessionStorage.removeItem('pending_deal_name');
-        sessionStorage.removeItem('pending_deal_plan');
-        await loadDashboard();
-        openDeal(r.data.id, r.data.name);
-      }
+      if (!r.error) { sessionStorage.removeItem('pending_deal_name'); sessionStorage.removeItem('pending_deal_plan'); await loadDashboard(); openDeal(r.data.id, r.data.name); }
     }
-  } else if (params.get('payment') === 'cancelled') {
-    window.history.replaceState({}, '', window.location.pathname);
-    toast('Payment cancelled.');
-  }
+  } else if (params.get('payment') === 'cancelled') { window.history.replaceState({}, '', window.location.pathname); toast('Payment cancelled.'); }
 }
 
 if (!checkBuyerPortal()) { init(); }
-
-// Check for payment return after auth loads
-db.auth.onAuthStateChange(function(event, session) {
-  if (event === 'SIGNED_IN' && session) {
-    setTimeout(checkPaymentReturn, 1000);
-  }
-});
-
+db.auth.onAuthStateChange(function(event, session) { if (event === 'SIGNED_IN' && session) { setTimeout(checkPaymentReturn, 1000); } });
 </script>
 </body>
 </html>
