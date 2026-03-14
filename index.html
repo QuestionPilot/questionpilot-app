@@ -164,6 +164,12 @@
     .btn-pub{padding:.55rem 1.1rem;background:#059669;color:#fff;border:none;border-radius:6px;font-family:inherit;font-weight:700;font-size:0.8rem;cursor:pointer}
     .btn-pub:hover{background:#047857}
 
+    /* INLINE EDITING on tracker rows */
+    .inline-edit-input{font-family:inherit;font-size:0.85rem;color:var(--ink);border:1.5px solid var(--teal);border-radius:5px;padding:.3rem .5rem;background:#fafffe;outline:none;box-shadow:0 0 0 3px rgba(42,92,89,.08);width:100%}
+    .inline-edit-select{font-family:inherit;font-size:0.82rem;color:var(--ink);border:1.5px solid var(--teal);border-radius:5px;padding:.3rem .5rem;background:#fafffe;outline:none;box-shadow:0 0 0 3px rgba(42,92,89,.08);cursor:pointer}
+    .inline-edit-ta{font-family:inherit;font-size:0.85rem;color:var(--ink);border:1.5px solid var(--teal);border-radius:5px;padding:.35rem .5rem;background:#fafffe;outline:none;box-shadow:0 0 0 3px rgba(42,92,89,.08);width:100%;min-height:54px;resize:vertical;line-height:1.5}
+    tr.editing td{background:rgba(42,92,89,.025)!important}
+
     /* EDIT MODE in detail panel */
     .edit-field{width:100%;padding:.6rem .85rem;border:1px solid var(--teal);border-radius:7px;font-family:inherit;font-size:0.875rem;color:var(--ink);background:#fafffe;outline:none;box-shadow:0 0 0 3px rgba(42,92,89,.08)}
     .edit-field-sm{padding:.45rem .75rem;font-size:0.82rem}
@@ -976,13 +982,36 @@ function renderQuestions(){
     html+='</div></td></tr>';
     if(!isCollapsed){
       catQs.forEach(function(q){
-        html+='<tr data-qid="'+q.id+'">';
-        html+='<td style="padding-left:2.5rem"><span class="cp '+buyerColor(q.buyer_id)+'">'+buyerName(q.buyer_id)+'</span></td>';
-        html+='<td><span class="cat-badge">'+(q.category||'')+'</span></td>';
-        html+='<td><span class="qnum">'+(q.question_number||'')+'</span></td>';
-        html+='<td style="max-width:360px;font-size:.85rem">'+q.question_text+'</td>';
-        html+='<td style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">'+(q.vdr_reference||'')+'</td>';
-        html+='<td>'+statusBadge(q.status)+'</td></tr>';
+        var allCatOpts = defaultCategories.concat(dealCategories.filter(function(c){return !defaultCategories.includes(c);}));
+        var catOptions = allCatOpts.map(function(c){return '<option value="'+c+'"'+(c===q.category?' selected':'')+'>'+c+'</option>';}).join('');
+        var buyerOptions = allBuyers.map(function(b){return '<option value="'+b.id+'"'+(b.id===q.buyer_id?' selected':'')+'>'+b.name+'</option>';}).join('');
+        var statusOptions = ['open','in_review','draft','published'].map(function(s){var labels={open:'Open',in_review:'In Review',draft:'Draft',published:'Published'};return '<option value="'+s+'"'+(s===q.status?' selected':'')+'>'+labels[s]+'</option>';}).join('');
+        html+='<tr data-qid="'+q.id+'" class="q-row">';
+        // Buyer (inline select)
+        html+='<td style="padding-left:2.5rem" class="cell-buyer" data-qid="'+q.id+'">';
+        html+='<select class="inline-edit-select" data-qid="'+q.id+'" data-field="buyer_id" style="display:none"></select>';
+        html+='<span class="cell-display cp '+buyerColor(q.buyer_id)+'">'+buyerName(q.buyer_id)+'</span></td>';
+        // Category (inline select)
+        html+='<td class="cell-cat" data-qid="'+q.id+'">';
+        html+='<select class="inline-edit-select" data-qid="'+q.id+'" data-field="category" style="display:none">'+catOptions+'</select>';
+        html+='<span class="cell-display cat-badge">'+(q.category||'')+'</span></td>';
+        // Q# (inline input)
+        html+='<td class="cell-qnum" data-qid="'+q.id+'">';
+        html+='<input class="inline-edit-input" data-qid="'+q.id+'" data-field="question_number" value="'+(q.question_number||'')+'" style="display:none;width:60px"/>';
+        html+='<span class="cell-display qnum">'+(q.question_number||'')+'</span></td>';
+        // Question text (inline textarea)
+        html+='<td style="max-width:360px" class="cell-qtext" data-qid="'+q.id+'">';
+        html+='<textarea class="inline-edit-ta" data-qid="'+q.id+'" data-field="question_text" style="display:none">'+q.question_text+'</textarea>';
+        html+='<span class="cell-display" style="font-size:.85rem">'+q.question_text+'</span></td>';
+        // VDR ref (inline input)
+        html+='<td class="cell-vdr" data-qid="'+q.id+'">';
+        html+='<input class="inline-edit-input" data-qid="'+q.id+'" data-field="vdr_reference" value="'+(q.vdr_reference||'')+'" style="display:none;width:90px"/>';
+        html+='<span class="cell-display" style="font-size:.7rem;color:var(--ink-faint);font-family:monospace">'+(q.vdr_reference||'')+'</span></td>';
+        // Status (inline select)
+        html+='<td class="cell-status" data-qid="'+q.id+'">';
+        html+='<select class="inline-edit-select" data-qid="'+q.id+'" data-field="status" style="display:none">'+statusOptions+'</select>';
+        html+='<span class="cell-display">'+statusBadge(q.status)+'</span></td>';
+        html+='</tr>';
       });
     }
   });
@@ -994,10 +1023,95 @@ function renderQuestions(){
       if(cat){if(!window.collapsedCategories)window.collapsedCategories={};window.collapsedCategories[cat]=!window.collapsedCategories[cat];renderQuestions();}
     });
   });
-  tbody.querySelectorAll('tr[data-qid]').forEach(function(row){row.addEventListener('click',function(){openQuestion(row.dataset.qid);});});
+
+  // Inline editing: click a cell to edit, blur/Enter to save
+  tbody.querySelectorAll('.q-row').forEach(function(row){
+    var qId=row.dataset.qid;
+
+    // Click on display span → show input, hide span
+    row.querySelectorAll('td[data-qid]').forEach(function(cell){
+      var display=cell.querySelector('.cell-display');
+      var input=cell.querySelector('.inline-edit-input, .inline-edit-select, .inline-edit-ta');
+      if(!display||!input) return;
+
+      display.style.cursor='text';
+      display.addEventListener('click',function(e){
+        e.stopPropagation();
+        // Populate buyer select dynamically
+        if(input.dataset.field==='buyer_id'){
+          input.innerHTML=allBuyers.map(function(b){var q=allQuestions.find(function(q){return q.id===qId;});return '<option value="'+b.id+'"'+(b.id===(q?q.buyer_id:'')?' selected':'')+'>'+b.name+'</option>';}).join('');
+        }
+        display.style.display='none';
+        input.style.display='';
+        input.focus();
+        if(input.tagName==='TEXTAREA'){input.style.height='auto';input.style.height=input.scrollHeight+'px';}
+        row.classList.add('editing');
+      });
+
+      // Save on blur
+      input.addEventListener('blur',function(){
+        saveInlineField(qId, input.dataset.field, input.value, row, cell, display, input);
+      });
+
+      // Save on Enter (not for textarea)
+      if(input.tagName!=='TEXTAREA'){
+        input.addEventListener('keydown',function(e){
+          if(e.key==='Enter'){e.preventDefault();input.blur();}
+          if(e.key==='Escape'){cancelInlineEdit(row,cell,display,input);}
+        });
+      }
+
+      // Select: save immediately on change
+      if(input.tagName==='SELECT'){
+        input.addEventListener('change',function(){input.blur();});
+      }
+    });
+
+    // Click on row (not on a cell input) → open detail panel
+    row.addEventListener('click',function(e){
+      if(e.target.classList.contains('cell-display')||e.target===row) openQuestion(qId);
+    });
+  });
 }
 
 function filterQuestions(){renderQuestions();}
+
+async function saveInlineField(qId, field, value, row, cell, display, input){
+  value = value.trim ? value.trim() : value;
+  // Optimistically update local cache
+  var q = allQuestions.find(function(q){return q.id===qId;});
+  if(q) q[field] = value;
+  // Update DB
+  var update = {}; update[field] = value; update.updated_at = new Date().toISOString();
+  var r = await db.from('questions').update(update).eq('id', qId);
+  if(r.error){ toast('Save failed: '+r.error.message, 'error'); }
+  else { toast('Saved', 'success'); }
+  // Refresh the cell display
+  cancelInlineEdit(row, cell, display, input);
+  // Re-render to reflect category grouping changes if category/buyer changed
+  if(field==='category'||field==='buyer_id'||field==='status') renderQuestions();
+  else { renderTrackerStats(); }
+}
+
+function cancelInlineEdit(row, cell, display, input){
+  input.style.display='none';
+  // Rebuild display from current local data
+  var qId = row.dataset.qid;
+  var q = allQuestions.find(function(q){return q.id===qId;});
+  if(q){
+    var field = input.dataset.field;
+    if(field==='buyer_id') display.innerHTML = buyerName(q.buyer_id);
+    else if(field==='category') display.textContent = q.category||'';
+    else if(field==='question_number') display.textContent = q.question_number||'';
+    else if(field==='question_text') display.textContent = q.question_text||'';
+    else if(field==='vdr_reference') display.textContent = q.vdr_reference||'';
+    else if(field==='status') display.innerHTML = statusBadge(q.status);
+    // Refresh buyer color class
+    if(field==='buyer_id'){display.className='cell-display cp '+buyerColor(q.buyer_id);}
+  }
+  display.style.display='';
+  row.classList.remove('editing');
+}
 
 function renderBuyers(){
   var el=document.getElementById('buyers-list');
