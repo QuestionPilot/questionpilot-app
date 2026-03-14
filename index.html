@@ -81,7 +81,7 @@
     .stat-value{font-size:2.8rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1}
     .stat-sub{font-size:0.78rem;color:var(--ink-soft);margin-top:.25rem}
     .section-title{font-size:0.9rem;font-weight:700;color:var(--ink);margin-bottom:1rem}
-    .deals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem}
+    .deals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1.25rem}
     .deal-card{background:var(--white);border:1px solid var(--rule);border-radius:12px;padding:1.75rem;cursor:pointer;transition:box-shadow .15s,transform .15s}
     .deal-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.1);transform:translateY(-2px)}
     .deal-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem}
@@ -917,9 +917,9 @@ function renderDealCards(containerId,deals){
     html+='<div style="display:flex;align-items:center;gap:.5rem"><span class="deal-badge" style="background:'+(isActive?'#d1fae5':'#f3f4f6')+';color:'+(isActive?'#065f46':'#6b7280')+'">'+(isActive?'Active':'Closed')+'</span>';
     html+='<button class="deal-toggle-btn" data-did="'+d.id+'" data-dstatus="'+d.status+'" style="font-size:.62rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;border:1px solid var(--rule-mid);background:transparent;color:var(--ink-soft);cursor:pointer">'+(isActive?'Close':'Reopen')+'</button></div></div>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:8px;overflow:hidden;margin-top:1.1rem">';
-    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsb-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Counterparties</div></div>';
-    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsc-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Clients</div></div>';
-    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsq-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Questions</div></div>';
+    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsb-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Counterpart.</div></div>';
+    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsc-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Clients</div></div>';
+    html+='<div style="background:var(--bg);padding:.9rem 1rem;text-align:center"><div style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-0.04em;line-height:1" id="dsq-'+d.id+'">—</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:.35rem">Questions</div></div>';
     html+='</div></div>';
   });
   html+='</div>'; el.innerHTML=html;
