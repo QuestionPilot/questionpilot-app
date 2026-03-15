@@ -1820,45 +1820,92 @@ async function loadPortal(token, portalType){
   }
 }
 
+// ── PORTAL STATS STRIP ───────────────────────────────────────────────────────
+function buildPortalStats(qs) {
+  var total = qs.length;
+  var responded = qs.filter(function(q){return q.status==='published';}).length;
+  var inReview = qs.filter(function(q){return q.status==='in_review';}).length;
+  var awaiting = qs.filter(function(q){return q.status==='open'||q.status==='draft';}).length;
+  var pct = total > 0 ? Math.round((responded / total) * 100) : 0;
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.07);border-radius:10px;overflow:hidden;margin-bottom:1.75rem">';
+  function stat(val, label, color) {
+    return '<div style="background:#fff;padding:1rem 1.25rem;text-align:center"><div style="font-size:1.6rem;font-weight:800;color:'+(color||'#141f1e')+';letter-spacing:-0.04em;line-height:1">'+val+'</div><div style="font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8fa5a3;margin-top:.3rem">'+label+'</div></div>';
+  }
+  html += stat(total, 'Total');
+  html += stat(awaiting, 'Awaiting', '#1e40af');
+  html += stat(inReview, 'In Review', '#92400e');
+  html += stat(pct+'%', 'Complete', pct===100?'#059669':'#2a5c59');
+  html += '</div>';
+  return html;
+}
+
 // ── CLIENT PORTAL RENDER ──────────────────────────────────────────────────────
+var clientCollapsed = {};
+
 function renderClientQuestions(qs, client){
   var container=document.getElementById('client-questions-list');
   if(!qs.length){container.innerHTML='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>';return;}
-  // Group by category
+
   var groups={}, groupOrder=[];
   qs.forEach(function(q){var cat=q.category||'General';if(!groups[cat]){groups[cat]=[];groupOrder.push(cat);}groups[cat].push(q);});
-  var html='';
+
+  var statusMap={open:'Awaiting Response',in_review:'Under Review',draft:'Draft',published:'Responded'};
+  var statusColor={open:'#1e40af',in_review:'#92400e',draft:'#6b7280',published:'#065f46'};
+  var statusBg={open:'#dbeafe',in_review:'#fef3c7',draft:'#f3f4f6',published:'#d1fae5'};
+
+  var html = buildPortalStats(qs);
   groupOrder.forEach(function(cat){
-    html+='<div style="font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8fa5a3;margin:1.5rem 0 .75rem">'+cat+'</div>';
-    groups[cat].forEach(function(q){
-      html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:.85rem;overflow:hidden">';
-      html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)">';
-      html+='<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
-      if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
-      // Status — show simple label, no role attribution
-      var statusMap={open:'Awaiting Response',in_review:'Under Review',draft:'Draft',published:'Responded'};
-      var statusColor={open:'#1e40af',in_review:'#92400e',draft:'#6b7280',published:'#065f46'};
-      var statusBg={open:'#dbeafe',in_review:'#fef3c7',draft:'#f3f4f6',published:'#d1fae5'};
-      var s=q.status||'open';
-      html+='<span style="font-size:.62rem;font-weight:700;padding:.15rem .5rem;border-radius:100px;background:'+(statusBg[s]||'#f3f4f6')+';color:'+(statusColor[s]||'#6b7280')+'">'+( statusMap[s]||s)+'</span>';
+    var catQs=groups[cat];
+    var isCollapsed=clientCollapsed[cat]===true;
+    var responded=catQs.filter(function(q){return q.status==='published';}).length;
+    var catId='cc-'+cat.replace(/[^a-z0-9]/gi,'-');
+    html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.09);border-radius:10px;margin-bottom:.85rem;overflow:hidden">';
+    html+='<div class="portal-cat-hdr" data-cat="'+cat+'" data-type="client" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;cursor:pointer;user-select:none;background:#f8faf9">';
+    html+='<div style="display:flex;align-items:center;gap:.75rem">';
+    html+='<span style="font-size:.7rem;color:#8fa5a3;transform:'+(isCollapsed?'rotate(-90deg)':'rotate(0deg)')+';display:inline-block;transition:transform .15s">&#9660;</span>';
+    html+='<span style="font-size:.82rem;font-weight:700;color:#141f1e">'+cat+'</span>';
+    html+='<span style="font-size:.68rem;color:#8fa5a3">'+catQs.length+' question'+(catQs.length!==1?'s':'')+'</span>';
+    if(responded>0) html+='<span style="font-size:.62rem;font-weight:700;background:#d1fae5;color:#065f46;padding:.12rem .4rem;border-radius:100px">'+responded+' responded</span>';
+    html+='</div></div>';
+    if(!isCollapsed){
+      html+='<div class="portal-cat-body" data-cat="'+cat+'">';
+      catQs.forEach(function(q){
+        var s=q.status||'open';
+        html+='<div style="border-top:1px solid rgba(0,0,0,.06)">';
+        html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.04)">';
+        html+='<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
+        if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
+        html+='<span style="font-size:.62rem;font-weight:700;padding:.15rem .5rem;border-radius:100px;background:'+(statusBg[s]||'#f3f4f6')+';color:'+(statusColor[s]||'#6b7280')+'">'+( statusMap[s]||s)+'</span>';
+        html+='</div>';
+        html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div>';
+        if(q.vdr_reference) html+='<div style="font-size:.72rem;color:#8fa5a3;font-family:monospace;margin-top:.3rem">Ref: '+q.vdr_reference+'</div>';
+        html+='</div>';
+        html+='<div id="client-thread-'+q.id+'" style="padding:.85rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto;background:#fafbfa"></div>';
+        html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05)">';
+        html+='<div style="font-size:.72rem;font-weight:600;color:#5e7270;margin-bottom:.4rem">Your Draft Response</div>';
+        html+='<div style="display:flex;gap:.5rem">';
+        html+='<textarea id="client-draft-'+q.id+'" placeholder="Draft a response for your advisor..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:44px" rows="2"></textarea>';
+        html+='<button class="client-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Submit</button>';
+        html+='</div>';
+        html+='<div style="font-size:.7rem;color:#8fa5a3;margin-top:.4rem">Your draft is only visible to your advisor until they publish a response.</div>';
+        html+='</div></div>';
+      });
       html+='</div>';
-      html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div>';
-      if(q.vdr_reference) html+='<div style="font-size:.72rem;color:#8fa5a3;font-family:monospace;margin-top:.3rem">Ref: '+q.vdr_reference+'</div>';
-      html+='</div>';
-      // Response thread (published responses visible to client)
-      html+='<div id="client-thread-'+q.id+'" style="padding:.85rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto;background:#fafbfa"></div>';
-      // Client draft input
-      html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05)">';
-      html+='<div style="font-size:.72rem;font-weight:600;color:#5e7270;margin-bottom:.4rem">Your Draft Response</div>';
-      html+='<div style="display:flex;gap:.5rem">';
-      html+='<textarea id="client-draft-'+q.id+'" placeholder="Draft a response for your advisor..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:44px" rows="2"></textarea>';
-      html+='<button class="client-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Submit</button>';
-      html+='</div>';
-      html+='<div style="font-size:.7rem;color:#8fa5a3;margin-top:.4rem">Your draft is only visible to your advisor until they publish a response.</div>';
-      html+='</div></div>';
+    }
+    html+='</div>';
+  });
+
+  container.innerHTML=html;
+
+  // Collapsible headers
+  container.querySelectorAll('.portal-cat-hdr').forEach(function(hdr){
+    hdr.addEventListener('click',function(){
+      var cat=hdr.dataset.cat;
+      clientCollapsed[cat]=!clientCollapsed[cat];
+      renderClientQuestions(qs,client);
     });
   });
-  container.innerHTML=html;
+
   container.querySelectorAll('.client-send-btn').forEach(function(btn){btn.addEventListener('click',function(){postClientDraft(btn.dataset.qid,client);});});
   qs.forEach(function(q){loadClientThread(q.id);});
 }
@@ -1873,8 +1920,7 @@ async function loadClientThread(questionId){
     var d=new Date(m.created_at);
     var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
     var isAdvisor=m.author_type==='advisor';
-    // Client sees advisor responses as "Response", own messages as "Your message"
-    var label = isAdvisor ? 'Response' : 'Your message';
+    var label=isAdvisor?'Response':'Your message';
     var bg=isAdvisor?'#f0fdf4':'#eff6ff', border=isAdvisor?'#86efac':'#bfdbfe', nameColor=isAdvisor?'#065f46':'#1e40af';
     html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem">';
     html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>'+label+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+'</span></div>';
@@ -1887,38 +1933,72 @@ async function postClientDraft(questionId, client){
   if(!portalBuyer) return;
   var input=document.getElementById('client-draft-'+questionId);
   var text=input.value.trim(); if(!text) return;
-  // Store as internal message so only advisor sees it, marked as client type
   var r=await db.from('question_messages').insert({
     question_id:questionId, deal_id:portalBuyer.deal_id,
     author_name:client.name, author_type:'client',
     buyer_id:client.id, is_internal:true, message_text:'[Client Draft] '+text
   });
   if(r.error){alert('Error: '+r.error.message);return;}
-  // Update status to in_review
   await db.from('questions').update({status:'in_review',updated_at:new Date().toISOString()}).eq('id',questionId);
   input.value='';
-  // Show confirmation inline
   var btn=document.querySelector('[data-qid="'+questionId+'"].client-send-btn');
   if(btn){var orig=btn.textContent;btn.textContent='Sent ✓';btn.style.background='#059669';setTimeout(function(){btn.textContent=orig;btn.style.background='#2a5c59';},2500);}
 }
 
+// ── COUNTERPARTY PORTAL RENDER ────────────────────────────────────────────────
+var buyerCollapsed = {};
+
 function renderBuyerQuestions(qs,buyer){
   var container=document.getElementById('buyer-questions-list');
   if(!qs.length){container.innerHTML='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:3rem;text-align:center;color:#8fa5a3;font-size:.85rem">No questions yet. Check back soon.</div>';return;}
-  var html='';
-  qs.forEach(function(q){
-    html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:10px;margin-bottom:1rem;overflow:hidden">';
-    html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.05)"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
-    if(q.category) html+='<span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">'+q.category+'</span>';
-    if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
+
+  var groups={}, groupOrder=[];
+  qs.forEach(function(q){var cat=q.category||'General';if(!groups[cat]){groups[cat]=[];groupOrder.push(cat);}groups[cat].push(q);});
+
+  var html = buildPortalStats(qs);
+  groupOrder.forEach(function(cat){
+    var catQs=groups[cat];
+    var isCollapsed=buyerCollapsed[cat]===true;
+    var responded=catQs.filter(function(q){return q.status==='published';}).length;
+
+    html+='<div style="background:#fff;border:1px solid rgba(0,0,0,.09);border-radius:10px;margin-bottom:.85rem;overflow:hidden">';
+    html+='<div class="portal-cat-hdr" data-cat="'+cat+'" data-type="buyer" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;cursor:pointer;user-select:none;background:#f8faf9">';
+    html+='<div style="display:flex;align-items:center;gap:.75rem">';
+    html+='<span style="font-size:.7rem;color:#8fa5a3;transform:'+(isCollapsed?'rotate(-90deg)':'rotate(0deg)')+';display:inline-block;transition:transform .15s">&#9660;</span>';
+    html+='<span style="font-size:.82rem;font-weight:700;color:#141f1e">'+cat+'</span>';
+    html+='<span style="font-size:.68rem;color:#8fa5a3">'+catQs.length+' question'+(catQs.length!==1?'s':'')+'</span>';
+    if(responded>0) html+='<span style="font-size:.62rem;font-weight:700;background:#d1fae5;color:#065f46;padding:.12rem .4rem;border-radius:100px">'+responded+' responded</span>';
+    html+='</div></div>';
+
+    if(!isCollapsed){
+      html+='<div class="portal-cat-body" data-cat="'+cat+'">';
+      catQs.forEach(function(q){
+        html+='<div style="border-top:1px solid rgba(0,0,0,.06)">';
+        html+='<div style="padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.04)"><div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem">';
+        if(q.category) html+='<span style="background:#e8ebe9;color:#5e7270;padding:.12rem .45rem;border-radius:4px;font-size:.65rem">'+q.category+'</span>';
+        if(q.question_number) html+='<span style="font-size:.72rem;color:#2a5c59;font-weight:700;font-family:monospace">'+q.question_number+'</span>';
+        html+='</div>';
+        html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div></div>';
+        html+='<div id="buyer-thread-'+q.id+'" style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem;max-height:300px;overflow-y:auto;background:#fafbfa"></div>';
+        html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem">';
+        html+='<textarea id="buyer-reply-'+q.id+'" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
+        html+='<button class="buyer-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Send</button></div></div>';
+      });
+      html+='</div>';
+    }
     html+='</div>';
-    html+='<div style="font-size:.9rem;font-weight:600;color:#141f1e;line-height:1.4">'+q.question_text+'</div></div>';
-    html+='<div id="buyer-thread-'+q.id+'" style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem;max-height:300px;overflow-y:auto;background:#fafbfa"></div>';
-    html+='<div style="padding:.75rem 1.25rem;border-top:1px solid rgba(0,0,0,.05);display:flex;gap:.5rem">';
-    html+='<textarea id="buyer-reply-'+q.id+'" placeholder="Ask a follow-up question..." style="flex:1;padding:.5rem .75rem;border:1px solid rgba(0,0,0,.12);border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-size:.82rem;color:#141f1e;resize:none;outline:none;min-height:40px" rows="1"></textarea>';
-    html+='<button class="buyer-send-btn" data-qid="'+q.id+'" style="padding:.5rem 1rem;background:#2a5c59;color:#fff;border:none;border-radius:7px;font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;align-self:flex-end">Send</button></div></div>';
   });
+
   container.innerHTML=html;
+
+  container.querySelectorAll('.portal-cat-hdr').forEach(function(hdr){
+    hdr.addEventListener('click',function(){
+      var cat=hdr.dataset.cat;
+      buyerCollapsed[cat]=!buyerCollapsed[cat];
+      renderBuyerQuestions(qs,buyer);
+    });
+  });
+
   container.querySelectorAll('.buyer-send-btn').forEach(function(btn){btn.addEventListener('click',function(){postBuyerReply(btn.dataset.qid);});});
   qs.forEach(function(q){loadBuyerThread(q.id);});
 }
@@ -1933,7 +2013,7 @@ async function loadBuyerThread(questionId){
     var d=new Date(m.created_at);
     var dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
     var isAdvisor=m.author_type==='advisor';
-    var label = isAdvisor ? 'Response' : 'Your message';
+    var label=isAdvisor?'Response':'Your message';
     var bg=isAdvisor?'#f0fdf4':'#eff6ff', border=isAdvisor?'#86efac':'#bfdbfe', nameColor=isAdvisor?'#065f46':'#1e40af';
     html+='<div style="background:'+bg+';border:1px solid '+border+';border-radius:8px;padding:.6rem .85rem">';
     html+='<div style="font-size:.68rem;font-weight:700;color:'+nameColor+';margin-bottom:.3rem;display:flex;justify-content:space-between"><span>'+label+'</span><span style="font-weight:400;color:#8fa5a3">'+dateStr+'</span></div>';
