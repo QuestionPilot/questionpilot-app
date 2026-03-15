@@ -972,7 +972,14 @@ async function createDeal(){
 }
 
 async function openDeal(dealId,dealName){
-  currentDeal={id:dealId,name:dealName};
+  currentDeal={id:dealId,name:dealName,plan:'standard'};
+  // Load plan from deals table
+  var dealData = allDealsCache.find(function(d){return d.id===dealId;});
+  if(dealData && dealData.plan) currentDeal.plan = dealData.plan;
+  else {
+    var dr = await db.from('deals').select('plan').eq('id',dealId).single();
+    if(dr.data && dr.data.plan) currentDeal.plan = dr.data.plan;
+  }
   document.getElementById('deal-detail-name').textContent=currentDeal.name;
   document.getElementById('topbar-title').textContent=currentDeal.name;
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
@@ -986,7 +993,8 @@ async function loadDealData(){
   var r2=await db.from('questions').select('*').eq('deal_id',currentDeal.id).order('created_at',{ascending:true}); allQuestions=r2.data||[];
   var r3=await db.from('deal_categories').select('*').eq('deal_id',currentDeal.id).order('name'); dealCategories=(r3.data||[]).map(function(c){return c.name;});
   var counterparties = allBuyers.filter(function(b){return b.role !== 'client';});
-  document.getElementById('deal-detail-meta').textContent=counterparties.length+' counterpart'+(counterparties.length!==1?'ies':'y')+' \u00b7 '+allQuestions.length+' questions';
+  var planLabel = currentDeal.plan === 'starter' ? 'Starter · 1 counterparty max' : currentDeal.plan === 'standard' ? 'Standard · 5 counterparties max' : '';
+  document.getElementById('deal-detail-meta').textContent=counterparties.length+' counterpart'+(counterparties.length!==1?'ies':'y')+' \u00b7 '+allQuestions.length+' questions'+(planLabel?' \u00b7 '+planLabel:'');
   renderTrackerStats(); renderQuestions(); renderBuyers(); populateBuyerDropdowns(); populateCategoryDropdown();
 }
 
@@ -1222,6 +1230,22 @@ async function addBuyer(role){
   var emailId = role==='client' ? 'new-client-email' : 'new-buyer-email';
   var name=document.getElementById(nameId).value.trim(), email=document.getElementById(emailId).value.trim();
   if(!name){toast((role==='client'?'Client':'Counterparty')+' name required.','error');return;}
+
+  // Enforce plan limits for counterparties
+  if(role === 'counterparty') {
+    var dealPlan = currentDeal && currentDeal.plan ? currentDeal.plan : 'standard';
+    var currentCounterparties = allBuyers.filter(function(b){return b.role !== 'client';});
+    var limit = dealPlan === 'starter' ? 1 : 5;
+    if(currentCounterparties.length >= limit) {
+      if(dealPlan === 'starter') {
+        toast('Starter plan is limited to 1 counterparty. Purchase a Standard deal to add more.', 'error');
+      } else {
+        toast('Standard plan is limited to 5 counterparties. Contact us for Enterprise pricing.', 'error');
+      }
+      return;
+    }
+  }
+
   var r=await db.from('buyers').insert({deal_id:currentDeal.id,name,email,role});
   if(r.error){toast('Error: '+r.error.message,'error');return;}
   document.getElementById(nameId).value=''; document.getElementById(emailId).value='';
@@ -1733,10 +1757,11 @@ async function checkPaymentReturn(){
   var params=new URLSearchParams(window.location.search);
   if(params.get('payment')==='success'){
     var dealName=params.get('deal')||sessionStorage.getItem('pending_deal_name')||'New Deal';
+    var dealPlan=sessionStorage.getItem('pending_deal_plan')||'standard';
     window.history.replaceState({},'',window.location.pathname);
     toast('Payment confirmed! Creating your deal...','success');
     if(currentFirmId){
-      var r=await db.from('deals').insert({name:dealName,firm_id:currentFirmId,created_by:currentUser.id}).select().single();
+      var r=await db.from('deals').insert({name:dealName,firm_id:currentFirmId,created_by:currentUser.id,plan:dealPlan}).select().single();
       if(!r.error){sessionStorage.removeItem('pending_deal_name');sessionStorage.removeItem('pending_deal_plan');await loadDashboard();openDeal(r.data.id,r.data.name);}
     }
   }else if(params.get('payment')==='cancelled'){window.history.replaceState({},'',window.location.pathname);toast('Payment cancelled.');}
